@@ -361,3 +361,25 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Unity Generated Folders
+
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+UserSettings/
+
+# MemoryCaptures
+[Mm]emoryCaptures/
+
+# Asset meta data should NOT be ignored
+!Assets/**/*.meta
+
+# Crash reports
+sysinfo.txt
+
+# Unity Cache
+.DS_Store
