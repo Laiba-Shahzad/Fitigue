@@ -11,7 +11,8 @@ database.
 The system will follow a layered architecture approach consisting of: 
 - Presentation Layer (Frontend UI) 
 - Business Logic Layer 
-- Data Access Layer (Database Handling) 
+- Data Access Layer (Database Handling)
+  
 The project will emphasize modular design, requirement analysis, iteration-based development, 
 role distribution, and integration between frontend and backend components. The main objective 
 is to demonstrate a working full-stack application developed using structured software 
