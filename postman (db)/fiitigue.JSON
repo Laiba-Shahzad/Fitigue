@@ -1,0 +1,623 @@
+{
+  "info": {
+    "_postman_id": "3c3ffa32-455d-4409-9956-61341112660b",
+    "name": "My Collection",
+    "description": "### Welcome to Postman! This is your first collection. \n\nCollections are your starting point for building and testing APIs. You can use this one to:\n\n• Group related requests\n• Test your API in real-world scenarios\n• Document and share your requests\n\nUpdate the name and overview whenever you’re ready to make it yours.\n\n[Learn more about Postman Collections.](https://learning.postman.com/docs/collections/collections-overview/)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "53219907",
+    "_collection_link": "https://go.postman.co/collection/53219907-3c3ffa32-455d-4409-9956-61341112660b?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "24L-2520, 24L-2552, 24L-2600",
+      "item": [
+        {
+          "name": "lab1",
+          "item": [
+            {
+              "name": "get_books",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:3000/get_books",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "get_books"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "lab2",
+          "item": [
+            {
+              "name": "insert_salesman",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"salesman_id\": 5012,\r\n    \"name\": \"Harry Potter\",\r\n    \"city\": \"London\",\r\n    \"commission\": 0.37\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:4000/insert_salesman",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "4000",
+                  "path": [
+                    "insert_salesman"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "insert_orders",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"ord_no\": 70050,\r\n    \"purch_amt\": 26.75,\r\n    \"ord_date\": \"2026-03-18\",\r\n    \"customer_id\": 3001,\r\n    \"salesman_id\": 5012\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:4000/insert_orders",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "4000",
+                  "path": [
+                    "insert_orders"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "insert_customers",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"customer_id\": 3012,\r\n    \"cust_name\": \"Percy Jackson\",\r\n    \"city\": \"New Rome\",\r\n    \"grade\": 57,\r\n    \"salesman_id\": 5012\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:4000/insert_customers",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "4000",
+                  "path": [
+                    "insert_customers"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "lab3",
+          "item": [
+            {
+              "name": "get_cricket",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5000/cricket?after=2004",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "cricket"
+                  ],
+                  "query": [
+                    {
+                      "key": "after",
+                      "value": "2004"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_movies",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5000/movies?genre=Sci-Fi&after=2012",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "movies"
+                  ],
+                  "query": [
+                    {
+                      "key": "genre",
+                      "value": "Sci-Fi"
+                    },
+                    {
+                      "key": "after",
+                      "value": "2012"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_football",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5000/football?position=Forward&country=Funland",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "football"
+                  ],
+                  "query": [
+                    {
+                      "key": "position",
+                      "value": "Forward"
+                    },
+                    {
+                      "key": "country",
+                      "value": "Funland"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_space-missions",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5000/space-missions?agency=NASA&after=1975",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "space-missions"
+                  ],
+                  "query": [
+                    {
+                      "key": "agency",
+                      "value": "NASA"
+                    },
+                    {
+                      "key": "after",
+                      "value": "1975"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_recipes",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5000/recipes?cuisine=Mexican",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "recipes"
+                  ],
+                  "query": [
+                    {
+                      "key": "cuisine",
+                      "value": "Mexican"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_workouts",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5000/workouts?category=Flexibility&mincalories=100",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "workouts"
+                  ],
+                  "query": [
+                    {
+                      "key": "category",
+                      "value": "Flexibility"
+                    },
+                    {
+                      "key": "mincalories",
+                      "value": "100"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_poetry",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5000/poetry?era=Modern",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "poetry"
+                  ],
+                  "query": [
+                    {
+                      "key": "era",
+                      "value": "Modern"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_physics",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5000/physics?after=2000&field=Thermodynamics",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "physics"
+                  ],
+                  "query": [
+                    {
+                      "key": "after",
+                      "value": "2000"
+                    },
+                    {
+                      "key": "field",
+                      "value": "Thermodynamics"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_maths",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:5000/mathematics?category=Algebra",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "5000",
+                  "path": [
+                    "mathematics"
+                  ],
+                  "query": [
+                    {
+                      "key": "category",
+                      "value": "Algebra"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "lab4",
+          "item": [
+            {
+              "name": "insert_race",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"race_name\": \"Temple Run\",\r\n    \"location\": \"Alabama\",\r\n    \"race_date\": \"2026-01-15\",\r\n    \"track_length\": 15.4,\r\n    \"max_participants\": 20\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:6000/race",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "6000",
+                  "path": [
+                    "race"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "insert_race-result",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"race_id\": 6,\r\n    \"driver_id\": 8,\r\n    \"finishing_position\": 4,\r\n    \"completion_time\": 190.4\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:6000/race-result",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "6000",
+                  "path": [
+                    "race-result"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_driver",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
+              "request": {
+                "method": "GET",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"race_name\": \"Temple Run\",\r\n    \"location\": \"Alabama\",\r\n    \"race_date\": \"2026-01-15\",\r\n    \"track_length\": 15.4,\r\n    \"max_participants\": 20\r\n}"
+                },
+                "url": {
+                  "raw": "http://localhost:6000/drivers?country=UK",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "6000",
+                  "path": [
+                    "drivers"
+                  ],
+                  "query": [
+                    {
+                      "key": "country",
+                      "value": "UK"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_driver-rewards",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:6000/driver-rewards?amount=10000",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "6000",
+                  "path": [
+                    "driver-rewards"
+                  ],
+                  "query": [
+                    {
+                      "key": "amount",
+                      "value": "10000"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "lab5",
+          "item": [
+            {
+              "name": "insert_creature",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"Name\": \"Sedusa\",\r\n    \"Type\": \"Villain\",\r\n    \"SpecificPowerID\": 1,\r\n    \"Status\": \"Alive\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:7000/creature",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "7000",
+                  "path": [
+                    "creature"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "insert_fight",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"Creature1ID\": 1,\r\n    \"Creature2ID\": 6,\r\n    \"WinnerID\": 1,\r\n    \"Date\": \"2026-03-10\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "http://localhost:7000/fight",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "7000",
+                  "path": [
+                    "fight"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_death-log",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
+              "request": {
+                "method": "GET",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"Creature1ID\": 1,\r\n    \"Creature2ID\": 6,\r\n    \"WinnerID\": 1,\r\n    \"Date\": \"2026-03-10\"\r\n}"
+                },
+                "url": {
+                  "raw": "http://localhost:7000/death-log?cause=Defeated by Bubbles",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "7000",
+                  "path": [
+                    "death-log"
+                  ],
+                  "query": [
+                    {
+                      "key": "cause",
+                      "value": "Defeated by Bubbles"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_family-relation",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
+              "request": {
+                "method": "GET",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"Creature1ID\": 1,\r\n    \"Creature2ID\": 6,\r\n    \"WinnerID\": 1,\r\n    \"Date\": \"2026-03-10\"\r\n}"
+                },
+                "url": {
+                  "raw": "http://localhost:7000/family-relation?type=Sibling",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "7000",
+                  "path": [
+                    "family-relation"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "Sibling"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
