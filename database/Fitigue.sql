@@ -575,7 +575,7 @@ WHERE wi.item_id = 5;
 -- Edit item details
 UPDATE WardrobeItems
 SET title       = 'Black Slim Blazer',
-    description = 'Updated description — excellent condition',
+    description = 'Updated description Â— excellent condition',
     price       = 45.00,
     color       = 'Charcoal',
     allow_swap  = 0
