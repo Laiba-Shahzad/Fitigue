@@ -515,7 +515,7 @@ VALUES ('emma_style', 'emma@example.com', 'hashed_pw_xyz', 'profiles/emma.jpg', 
 -- Login
 SELECT user_id, username, email, profile_image, rating_avg, total_trades
 FROM Users
-WHERE email = 'emma@example.com'
+WHERE username = 'emma_style'
   AND password_hash = 'hashed_pw_xyz';
 
 -- View user's own profile
@@ -594,10 +594,6 @@ WHERE item_id = 5 AND user_id = 3;
 DELETE FROM WardrobeItems                 
 WHERE item_id = 5 AND user_id = 3; 
 
--- View wardrobe items by category
-SELECT item_id, title, size, color, price, status
-FROM WardrobeItems
-WHERE user_id = 2 AND category = 'Jackets';
 
 --3: CLOTHING MARKETPLACE
 
@@ -888,17 +884,6 @@ FROM ClothingRequests cr
 JOIN Users u ON cr.user_id = u.user_id
 ORDER BY cr.created_at DESC;
 
--- View own clothing requests
-SELECT request_id, description, created_at
-FROM ClothingRequests
-WHERE user_id = 3
-ORDER BY created_at DESC;
-
--- Edit clothing request 
-UPDATE ClothingRequests
-SET description = 'Updated: Looking for vintage bomber jacket OR oversized hoodie, size M or L.'
-WHERE request_id = 8 AND user_id = 3;
-
 -- Remove clothing request 
 DELETE FROM ClothingRequests
 WHERE request_id = 7 AND user_id = 3;
@@ -994,30 +979,6 @@ SET rating_avg = (
     WHERE reviewed_user_id = 2
 )
 WHERE user_id = 2;
-
--- View all ratings of a user
-SELECT r.rating_id, u.username AS reviewer, u.profile_image,
-       r.rating_value, r.created_at,
-       wi.title AS traded_item
-FROM Ratings r
-JOIN Users u ON r.reviewer_id = u.user_id
-JOIN Trades t ON r.trade_id = t.trade_id
-JOIN WardrobeItems wi ON t.item_id = wi.item_id
-WHERE r.reviewed_user_id = 2
-ORDER BY r.created_at DESC;
-
--- Get rating summary for a user
-SELECT reviewed_user_id,
-       COUNT(*)                                  AS total_ratings,
-       AVG(CAST(rating_value AS DECIMAL(3,1)))   AS average_rating,
-       SUM(CASE WHEN rating_value = 5 THEN 1 ELSE 0 END) AS five_star,
-       SUM(CASE WHEN rating_value = 4 THEN 1 ELSE 0 END) AS four_star,
-       SUM(CASE WHEN rating_value = 3 THEN 1 ELSE 0 END) AS three_star,
-       SUM(CASE WHEN rating_value = 2 THEN 1 ELSE 0 END) AS two_star,
-       SUM(CASE WHEN rating_value = 1 THEN 1 ELSE 0 END) AS one_star
-FROM Ratings
-WHERE reviewed_user_id = 2
-GROUP BY reviewed_user_id;
 
 -- Delete rating 
 DELETE FROM Ratings

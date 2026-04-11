@@ -1,0 +1,34 @@
+{
+  "name": "fitigue",
+  "version": "1.0.0",
+  "description": "Fitigue is a full-stack clothing exchange and marketplace application. The system focuses on \r designing and implementing both frontend and backend components using proper software \r engineering principles. \r The frontend will provide an interactive and user-friendly interface where users can register, \r manage wardrobes, browse clothing listings, and initiate purchase or swap requests. The backend \r will handle business logic, user authentication, request processing, and communication with the \r database. \r The system will follow a layered architecture approach consisting of: \r - Presentation Layer (Frontend UI) \r - Business Logic Layer \r - Data Access Layer (Database Handling)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "nodemon fitigue_server.js",
+    "start": "node fitigue_server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Laiba-Shahzad/Fitigue.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Laiba-Shahzad/Fitigue/issues"
+  },
+  "homepage": "https://github.com/Laiba-Shahzad/Fitigue#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mssql": "^12.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
