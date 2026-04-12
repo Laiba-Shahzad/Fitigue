@@ -8,12 +8,10 @@ const {
   editItem,
   updateStatus,
   deleteItem,
-  getByCategory,
 } = require('../controllers/wardrobeController');
 
 router.post('/',                        auth, addItem);
 router.get('/my',                       auth, getMyWardrobe);
-router.get('/category/:category',       auth, getByCategory);
 router.get('/:id',                      auth, getItem);
 router.put('/:id',                      auth, editItem);
 router.patch('/:id/status',             auth, updateStatus);

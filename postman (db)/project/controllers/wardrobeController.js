@@ -136,22 +136,3 @@ exports.deleteItem = async (req, res) => {
   }
 };
 
-// ─── 7. VIEW WARDROBE BY CATEGORY ──────────────────────────────
-exports.getByCategory = async (req, res) => {
-  try {
-    const pool = await poolPromise;
-
-    const result = await pool.request()
-      .input('user_id',  sql.Int,     req.user.user_id)
-      .input('category', sql.VarChar, req.params.category)
-      .query(`
-        SELECT item_id, title, size, color, price, status
-        FROM WardrobeItems
-        WHERE user_id = @user_id AND category = @category
-      `);
-
-    res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};

@@ -39,15 +39,15 @@ exports.register = async (req, res) => {
 // ─── 2. LOGIN ───────────────────────────────────────────────────
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
     const pool = await poolPromise;
 
     const result = await pool.request()
-      .input('email', sql.VarChar, email)
+      .input('username', sql.VarChar, username)
       .query(`
         SELECT user_id, username, email, profile_image, rating_avg, total_trades, password_hash
         FROM Users
-        WHERE email = @email
+        WHERE username = @username
       `);
 
     const user = result.recordset[0];
