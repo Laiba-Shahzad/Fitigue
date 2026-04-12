@@ -389,18 +389,14 @@ VALUES
     (13, 7),
     (15, 8),
     (20, 10);
-GO
+
 
 INSERT INTO SwapRequests (requester_id, owner_id, requested_item_id, offered_item_id, status)
 VALUES
-    (2, 1, 1,  3,  'pending'),      
-    (3, 2, 4,  5,  'accepted'),     
-    (4, 3, 6,  7,  'pending'),     
-    (5, 4, 8,  9,  'completed'),    
+    (4, 3, 7,  14,  'pending'),     
+    (5, 4, 8,  19,  'completed'),    
     (6, 5, 10, 11, 'rejected'),     
-    (7, 6, 12, 13, 'pending'),     
-    (8, 7, 13, 15, 'completed'),    
-    (9, 8, 16, 17, 'pending');      
+    (7, 6, 12, 18, 'pending');
 GO
 
 INSERT INTO Trades (buyer_id, seller_id, item_id, trade_type, status)
@@ -888,26 +884,26 @@ DELETE FROM ClothingRequests
 WHERE request_id = 7 AND user_id = 3;
 
 --9: TRADE HISTORY 
-
 -- Trade history for user 
 SELECT t.trade_id,
-       CASE WHEN t.buyer_id = 2 THEN 'Bought' ELSE 'Sold' END AS action,
+       CASE WHEN t.buyer_id = 5 THEN 'Bought' ELSE 'Sold' END AS action,
        wi.title, wi.category, wi.price,
-       CASE WHEN t.buyer_id = 2
+       CASE WHEN t.buyer_id = 5
             THEN (SELECT username FROM Users WHERE user_id = t.seller_id)
             ELSE (SELECT username FROM Users WHERE user_id = t.buyer_id)
        END AS other_party,
        t.trade_type, t.status, t.trade_date
 FROM Trades t
 JOIN WardrobeItems wi ON t.item_id = wi.item_id
-WHERE t.buyer_id = 2 OR t.seller_id = 2
+WHERE t.buyer_id = 5 OR t.seller_id = 5
 ORDER BY t.trade_date DESC;
 
+select * from SwapRequests
 -- Swap history for user
 SELECT sr.swap_id,
        req_item.title AS item_wanted,
        off_item.title AS item_offered,
-       CASE WHEN sr.requester_id = 2 THEN u_owner.username
+       CASE WHEN sr.requester_id = 5 THEN u_owner.username
             ELSE u_req.username END AS other_user,
        sr.status, sr.created_at
 FROM SwapRequests sr
@@ -915,13 +911,13 @@ JOIN WardrobeItems req_item ON sr.requested_item_id = req_item.item_id
 JOIN WardrobeItems off_item ON sr.offered_item_id = off_item.item_id
 JOIN Users u_req ON sr.requester_id = u_req.user_id
 JOIN Users u_owner ON sr.owner_id = u_owner.user_id
-WHERE sr.requester_id = 2 OR sr.owner_id = 2
+WHERE sr.requester_id = 5 OR sr.owner_id = 5
 ORDER BY sr.created_at DESC;
 
 -- Count trades according to status
 SELECT status, COUNT(*) AS count
 FROM Trades
-WHERE buyer_id = 2 OR seller_id = 2
+WHERE buyer_id = 5 OR seller_id = 5
 GROUP BY status;
 
 -- Mark pending trade cancelled
@@ -929,7 +925,6 @@ UPDATE Trades
 SET status = 'cancelled'
 WHERE trade_id = 10 AND status = 'pending'
   AND (buyer_id = 4 OR seller_id = 2);
-
 
 --10: NOTIFICATIONS SYSTEM 
 
@@ -957,12 +952,11 @@ WHERE user_id = 2 AND is_read = 0;
 -- Mark a notification as read
 UPDATE Notifications
 SET is_read = 1
-WHERE notification_id = 5 AND user_id = 5;
+WHERE notification_id = 6 AND user_id = 5;
 
 -- Delete all read notifications
 DELETE FROM Notifications
 WHERE user_id = 2 AND is_read = 1;
-
 
 --11: RATINGS SYSTEM 
 
@@ -982,3 +976,4 @@ WHERE user_id = 2;
 -- Delete rating 
 DELETE FROM Ratings
 WHERE rating_id = 3 AND reviewer_id = 3;
+select * from Ratings
