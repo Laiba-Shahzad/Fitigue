@@ -16,7 +16,7 @@ exports.register = async (req, res) => {
     if (check.recordset[0].exists_flag > 0)
       return res.status(409).json({ message: 'Username already taken' });
 
-    const password_hash = await bcrypt.hash(password, 10);
+    const password_hash = password; // store as plain text
 
     await pool.request()
       .input('username',      sql.VarChar,  username)
@@ -53,9 +53,8 @@ exports.login = async (req, res) => {
     const user = result.recordset[0];
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const match = await bcrypt.compare(password, user.password_hash);
+    const match = password === user.password_hash;
     if (!match) return res.status(401).json({ message: 'Incorrect password' });
-
     const token = jwt.sign(
       { user_id: user.user_id, username: user.username },
       process.env.JWT_SECRET,
