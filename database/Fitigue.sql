@@ -38,7 +38,7 @@ CREATE TABLE WardrobeItems (
     item_id INT IDENTITY(1,1) PRIMARY KEY,
     user_id INT NOT NULL,
     title VARCHAR(100) NOT NULL,
-    description TEXT,
+    description VARCHAR(1000),
     category VARCHAR(50) NOT NULL,
     size VarCHAR(2) NOT NULL,
     color VARCHAR(30),
@@ -181,7 +181,7 @@ GO
 CREATE TABLE ClothingRequests (
     request_id INT IDENTITY(1,1) PRIMARY KEY,
     user_id INT NOT NULL,
-    description TEXT,
+    description varchar(1000),
     created_at DATETIME DEFAULT GETDATE(),
 
     CONSTRAINT fk_request_user
