@@ -11,7 +11,9 @@ app.use('/api/clothing-requests', require('./routes/clothingRequestsRoutes'));
 app.use('/api/history', require('./routes/tradeHistoryRoutes')); 
 app.use('/api/notifications', require('./routes/notificationSystemRoutes'));
 app.use('/api/ratings', require('./routes/ratingSystemRoutes'));
-
+app.use('/api/purchases',require('./routes/purchaseRoutes'));
+app.use('/api/swaps',require('./routes/swapRoutes'));
+app.use('/api/chats',require('./routes/chatRoutes'));
 ////add routes here
 
 
