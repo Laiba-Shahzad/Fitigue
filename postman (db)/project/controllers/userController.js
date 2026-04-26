@@ -2,7 +2,7 @@ const { sql, poolPromise } = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// ─── 1. REGISTER ────────────────────────────────────────────────
+//  1. REGISTER 
 exports.register = async (req, res) => {
   try {
     const { username, email, password, profile_image, gender, age } = req.body;

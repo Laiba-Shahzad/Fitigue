@@ -1,19 +1,33 @@
-CREATE DATABASE Fitigue
-GO
+--DROP DATABASE if exists Fitigue
+
+--CREATE DATABASE Fitigue
+--GO
 
 USE Fitigue
 GO
 
-DROP TABLE if exists Users
-DROP TABLE if exists WardrobeItems
-DROP TABLE if exists MarketplaceListings
-DROP TABLE if exists SwapRequests
-DROP TABLE if exists Trades
-DROP TABLE if exists Conversations
-DROP TABLE if exists Messages
-DROP TABLE if exists ClothingRequests
-DROP TABLE if exists Notifications
+
 DROP TABLE if exists Ratings
+GO
+DROP TABLE if exists Notifications
+GO
+DROP TABLE if exists ClothingRequests
+GO
+DROP TABLE if exists Messages
+GO
+DROP TABLE if exists Conversations
+GO
+DROP TABLE if exists Trades
+GO
+DROP TABLE if exists SwapRequests
+GO
+DROP TABLE if exists MarketplaceListings
+GO
+DROP TABLE if exists WardrobeItems
+GO
+DROP TABLE if exists Users
+
+
 
 --SCHEMA & CONSTRAINTS
 
@@ -161,7 +175,7 @@ CREATE TABLE Messages (
     message_id INT IDENTITY(1,1) PRIMARY KEY,
     conversation_id INT NOT NULL,
     sender_id INT NOT NULL,
-    message_text TEXT NOT NULL,
+    message_text VARCHAR(2000) NOT NULL,
     sent_at DATETIME DEFAULT GETDATE(),
 
     CONSTRAINT fk_msg_conversation
@@ -334,6 +348,12 @@ BEGIN
         ON WI.item_id = D.item_id;
 END;
 GO
+
+
+---------------for cloudinary 
+ALTER TABLE WardrobeItems
+ADD image_url VARCHAR(500) NULL;
+
 
 --DUMMY DATA
 

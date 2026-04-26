@@ -1,9 +1,11 @@
 const { sql, poolPromise } = require('../config/db');
+const { cloudinary } = require('../config/cloudinary');
 
 // ─── 1. ADD ITEM TO WARDROBE ────────────────────────────────────
 exports.addItem = async (req, res) => {
   try {
     const { title, description, category, size, color, price, allow_sale, allow_swap } = req.body;
+    const image_url = req.file ? req.file.path : null; //cloudinary URL
     const pool = await poolPromise;
 
     await pool.request()
@@ -16,12 +18,68 @@ exports.addItem = async (req, res) => {
       .input('price',       sql.Decimal(10,2), price)
       .input('allow_sale',  sql.Bit,           allow_sale)
       .input('allow_swap',  sql.Bit,           allow_swap)
+      .input('image_url',   sql.VarChar,       image_url)
       .query(`
-        INSERT INTO WardrobeItems (user_id, title, description, category, size, color, price, allow_sale, allow_swap)
-        VALUES (@user_id, @title, @description, @category, @size, @color, @price, @allow_sale, @allow_swap)
+        INSERT INTO WardrobeItems 
+          (user_id, title, description, category, size, color, price, allow_sale, allow_swap, image_url)
+        VALUES 
+          (@user_id, @title, @description, @category, @size, @color, @price, @allow_sale, @allow_swap, @image_url)
       `);
 
-    res.status(201).json({ message: 'Item added to wardrobe' });
+    res.status(201).json({ message: 'Item added', image_url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateItemImage = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No image uploaded' });
+
+    const image_url = req.file.path;
+    const pool = await poolPromise;
+
+    await pool.request()
+      .input('image_url', sql.VarChar, image_url)
+      .input('item_id',   sql.Int,     req.params.id)
+      .input('user_id',   sql.Int,     req.user.user_id)
+      .query(`
+        UPDATE WardrobeItems
+        SET image_url = @image_url
+        WHERE item_id = @item_id AND user_id = @user_id
+      `);
+
+    res.json({ message: 'Image updated', image_url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deleteItemImage = async (req, res) => {
+  try {
+    const { cloudinary } = require('../config/cloudinary');
+    const pool = await poolPromise;
+
+    // get current image url
+    const result = await pool.request()
+      .input('item_id', sql.Int, req.params.id)
+      .input('user_id', sql.Int, req.user.user_id)
+      .query(`SELECT image_url FROM WardrobeItems WHERE item_id = @item_id AND user_id = @user_id`);
+
+    const item = result.recordset[0];
+    if (!item || !item.image_url) return res.status(404).json({ message: 'No image found' });
+
+    // extract public_id from cloudinary url and delete
+    const publicId = item.image_url.split('/').slice(-2).join('/').split('.')[0];
+    await cloudinary.uploader.destroy(publicId);
+
+    // set image_url to null in db
+    await pool.request()
+      .input('item_id', sql.Int, req.params.id)
+      .input('user_id', sql.Int, req.user.user_id)
+      .query(`UPDATE WardrobeItems SET image_url = NULL WHERE item_id = @item_id AND user_id = @user_id`);
+
+    res.json({ message: 'Image deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

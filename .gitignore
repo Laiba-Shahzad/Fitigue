@@ -383,3 +383,7 @@ sysinfo.txt
 
 # Unity Cache
 .DS_Store
+
+
+.env.env
+*.postman_collection.json
