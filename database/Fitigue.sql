@@ -997,3 +997,9 @@ WHERE user_id = 2;
 DELETE FROM Ratings
 WHERE rating_id = 3 AND reviewer_id = 3;
 select * from Ratings
+ 
+select* from Users
+select* from Notifications
+select* from Trades
+select* from Ratings
+select* from ClothingRequests

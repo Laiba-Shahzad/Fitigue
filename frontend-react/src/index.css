@@ -1,0 +1,26 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Core palette */
+  --accent: #540863;            /* main text */
+  --accent-soft: #92487A;        /* secondary text */
+  --accent-light: #E49BA6;      /* highlight */
+  --accent-bg: #FFD3D5;         /* light text */
+  --warm: #FFD3D5;              /* background */
+  
+  --card-bg: #ffffff;
+  --border: #E49BA6;
+
+  --shadow: 0 6px 20px rgba(84, 8, 99, 0.15);
+  --radius: 12px;
+
+  --ff-body: system-ui, sans-serif;
+  --ff-display: system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--ff-body);
+  background: var(--warm);
+  color: var(--accent);
+  min-height: 100vh;
+}
