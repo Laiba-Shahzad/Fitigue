@@ -387,3 +387,5 @@ sysinfo.txt
 
 .env.env
 *.postman_collection.json
+
+.env
