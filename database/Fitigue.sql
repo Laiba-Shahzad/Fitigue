@@ -6,30 +6,27 @@
 USE Fitigue
 GO
 
+DROP TABLE IF EXISTS Ratings
+GO
+DROP TABLE IF EXISTS Notifications
+GO
+DROP TABLE IF EXISTS ClothingRequests
+GO
+DROP TABLE IF EXISTS Messages
+GO
+DROP TABLE IF EXISTS Conversations
+GO
+DROP TABLE IF EXISTS Trades
+GO
+DROP TABLE IF EXISTS SwapRequests
+GO
+DROP TABLE IF EXISTS MarketplaceListings
+GO
+DROP TABLE IF EXISTS WardrobeItems
+GO
+DROP TABLE IF EXISTS Users
+GO
 
-DROP TABLE if exists Ratings
-GO
-DROP TABLE if exists Notifications
-GO
-DROP TABLE if exists ClothingRequests
-GO
-DROP TABLE if exists Messages
-GO
-DROP TABLE if exists Conversations
-GO
-DROP TABLE if exists Trades
-GO
-DROP TABLE if exists SwapRequests
-GO
-DROP TABLE if exists MarketplaceListings
-GO
-DROP TABLE if exists WardrobeItems
-GO
-DROP TABLE if exists Users
-
-
-
---SCHEMA & CONSTRAINTS
 
 CREATE TABLE Users (
     user_id INT IDENTITY(1,1) PRIMARY KEY,
@@ -38,8 +35,6 @@ CREATE TABLE Users (
     password_hash VARCHAR(255) NOT NULL,
     gender CHAR(1),
     age INT CHECK (age >= 13),
-    rating_avg DECIMAL(2,1) DEFAULT 0 CHECK (rating_avg BETWEEN 0 AND 5),
-    total_trades INT DEFAULT 0 CHECK (total_trades >= 0),
     created_at DATETIME DEFAULT GETDATE()
 );
 GO
@@ -53,20 +48,17 @@ CREATE TABLE WardrobeItems (
     title VARCHAR(100) NOT NULL,
     description VARCHAR(1000),
     category VARCHAR(50) NOT NULL,
-    size VarCHAR(2) NOT NULL,
+    size VARCHAR(2) NOT NULL,
     color VARCHAR(30),
     price DECIMAL(10,2) CHECK (price >= 0),
     allow_sale BIT DEFAULT 1,
     allow_swap BIT DEFAULT 1,
     status VARCHAR(20) DEFAULT 'available',
     created_at DATETIME DEFAULT GETDATE(),
+    image_url VARCHAR(500) NULL,
 
-    CONSTRAINT fk_item_user
-        FOREIGN KEY (user_id)
-        REFERENCES Users(user_id),
-        
-    CONSTRAINT chk_item_status
-        CHECK (status IN ('available','sold','swapped')),
+    CONSTRAINT fk_item_user FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    CONSTRAINT chk_item_status CHECK (status IN ('available','sold','swapped'))
 );
 GO
 
@@ -78,75 +70,47 @@ GO
 CREATE TABLE MarketplaceListings (
     listing_id INT IDENTITY(1,1) PRIMARY KEY,
     item_id INT NOT NULL UNIQUE,
-    posted_by INT NOT NULL,
     posted_at DATETIME DEFAULT GETDATE(),
 
-    CONSTRAINT fk_listing_item
-        FOREIGN KEY (item_id)
-        REFERENCES WardrobeItems(item_id)
-        ON DELETE CASCADE 
-        ON UPDATE CASCADE,        
+    CONSTRAINT fk_listing_item FOREIGN KEY (item_id) REFERENCES WardrobeItems(item_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
 );
 GO
 
 CREATE TABLE SwapRequests (
     swap_id INT IDENTITY(1,1) PRIMARY KEY,
-    requester_id INT NOT NULL,
-    owner_id INT NOT NULL,
-    requested_item_id INT NOT NULL ,
+    requested_item_id INT NOT NULL,
     offered_item_id INT NOT NULL,
     status VARCHAR(20) DEFAULT 'pending',
     created_at DATETIME DEFAULT GETDATE(),
 
-    CONSTRAINT fk_swap_requester
-        FOREIGN KEY (requester_id) REFERENCES Users(user_id),
-
-    CONSTRAINT fk_swap_owner
-        FOREIGN KEY (owner_id) REFERENCES Users(user_id),
-
-    CONSTRAINT fk_requested_item
-        FOREIGN KEY (requested_item_id) REFERENCES WardrobeItems(item_id),
-
-    CONSTRAINT fk_offered_item
-        FOREIGN KEY (offered_item_id) REFERENCES WardrobeItems(item_id),
-
-    CONSTRAINT chk_swap_status
-        CHECK (status IN ('pending','accepted','rejected','completed'))
+    CONSTRAINT fk_requested_item FOREIGN KEY (requested_item_id) REFERENCES WardrobeItems(item_id),
+    CONSTRAINT fk_offered_item FOREIGN KEY (offered_item_id) REFERENCES WardrobeItems(item_id),
+    CONSTRAINT chk_swap_status CHECK (status IN ('pending','accepted','rejected','completed'))
 );
 GO
 
-CREATE INDEX idx_swap_requester ON SwapRequests(requester_id);
-CREATE INDEX idx_swap_owner ON SwapRequests(owner_id);
+CREATE INDEX idx_swap_requested ON SwapRequests(requested_item_id);
+CREATE INDEX idx_swap_offered ON SwapRequests(offered_item_id);
 GO
 
 CREATE TABLE Trades (
     trade_id INT IDENTITY(1,1) PRIMARY KEY,
-    buyer_id INT ,
-    seller_id INT ,
+    buyer_id INT,
     item_id INT,
     trade_type VARCHAR(10) NOT NULL,
     status VARCHAR(20) DEFAULT 'completed',
     trade_date DATETIME DEFAULT GETDATE(),
 
-    CONSTRAINT fk_trade_buyer
-        FOREIGN KEY (buyer_id) REFERENCES Users(user_id),
-
-    CONSTRAINT fk_trade_seller
-        FOREIGN KEY (seller_id) REFERENCES Users(user_id),
-
-    CONSTRAINT fk_trade_item
-        FOREIGN KEY (item_id) REFERENCES WardrobeItems(item_id),
-
-    CONSTRAINT chk_trade_type
-        CHECK (trade_type IN ('buy','sell')),
-
-    CONSTRAINT chk_trade_status
-        CHECK (status IN ('pending','completed','cancelled'))
+    CONSTRAINT fk_trade_buyer FOREIGN KEY (buyer_id) REFERENCES Users(user_id),
+    CONSTRAINT fk_trade_item FOREIGN KEY (item_id) REFERENCES WardrobeItems(item_id),
+    CONSTRAINT chk_trade_type CHECK (trade_type IN ('buy','sell')),
+    CONSTRAINT chk_trade_status CHECK (status IN ('pending','completed','cancelled'))
 );
 GO
 
 CREATE INDEX idx_trade_buyer ON Trades(buyer_id);
-CREATE INDEX idx_trade_seller ON Trades(seller_id);
+CREATE INDEX idx_trade_item ON Trades(item_id);
 GO
 
 CREATE TABLE Conversations (
@@ -155,14 +119,9 @@ CREATE TABLE Conversations (
     user2_id INT NOT NULL,
     created_at DATETIME DEFAULT GETDATE(),
 
-    CONSTRAINT fk_conv_user1
-        FOREIGN KEY (user1_id) REFERENCES Users(user_id),
-
-    CONSTRAINT fk_conv_user2
-        FOREIGN KEY (user2_id) REFERENCES Users(user_id),
-
-    CONSTRAINT chk_different_users
-        CHECK (user1_id <> user2_id)
+    CONSTRAINT fk_conv_user1 FOREIGN KEY (user1_id) REFERENCES Users(user_id),
+    CONSTRAINT fk_conv_user2 FOREIGN KEY (user2_id) REFERENCES Users(user_id),
+    CONSTRAINT chk_different_users CHECK (user1_id <> user2_id)
 );
 GO
 
@@ -177,14 +136,8 @@ CREATE TABLE Messages (
     message_text VARCHAR(2000) NOT NULL,
     sent_at DATETIME DEFAULT GETDATE(),
 
-    CONSTRAINT fk_msg_conversation
-        FOREIGN KEY (conversation_id)
-        REFERENCES Conversations(conversation_id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_msg_sender
-        FOREIGN KEY (sender_id)
-        REFERENCES Users(user_id)
+    CONSTRAINT fk_msg_conversation FOREIGN KEY (conversation_id) REFERENCES Conversations(conversation_id) ON DELETE CASCADE,
+    CONSTRAINT fk_msg_sender FOREIGN KEY (sender_id) REFERENCES Users(user_id)
 );
 GO
 
@@ -194,14 +147,11 @@ GO
 CREATE TABLE ClothingRequests (
     request_id INT IDENTITY(1,1) PRIMARY KEY,
     user_id INT NOT NULL,
-    description varchar(1000),
+    description VARCHAR(1000),
     created_at DATETIME DEFAULT GETDATE(),
 
-    CONSTRAINT fk_request_user
-        FOREIGN KEY (user_id)
-        REFERENCES Users(user_id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
+    CONSTRAINT fk_request_user FOREIGN KEY (user_id) REFERENCES Users(user_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
 );
 GO
 
@@ -216,9 +166,7 @@ CREATE TABLE Notifications (
     is_read BIT DEFAULT 0,
     created_at DATETIME DEFAULT GETDATE(),
 
-    CONSTRAINT fk_notification_user
-        FOREIGN KEY (user_id)
-        REFERENCES Users(user_id)
+    CONSTRAINT fk_notification_user FOREIGN KEY (user_id) REFERENCES Users(user_id)
         ON DELETE CASCADE
 );
 GO
@@ -227,35 +175,23 @@ CREATE INDEX idx_notification_user ON Notifications(user_id);
 GO
 
 CREATE TABLE Ratings (
-    rating_id INT IDENTITY(1,1) PRIMARY KEY,
-    reviewer_id INT ,
-    reviewed_user_id INT NOT NULL,
     trade_id INT NOT NULL,
+    reviewer_id INT NOT NULL,
+    reviewed_user_id INT NOT NULL,
     rating_value INT NOT NULL,
     created_at DATETIME DEFAULT GETDATE(),
 
-    CONSTRAINT fk_rating_reviewer
-        FOREIGN KEY (reviewer_id) REFERENCES Users(user_id),
-
-    CONSTRAINT fk_rating_reviewed
-        FOREIGN KEY (reviewed_user_id) REFERENCES Users(user_id),
-
-    CONSTRAINT fk_rating_trade
-        FOREIGN KEY (trade_id) REFERENCES Trades(trade_id),
-
-    CONSTRAINT chk_rating_value
-        CHECK (rating_value BETWEEN 1 AND 5),
-
-    CONSTRAINT chk_no_self_rating
-        CHECK (reviewer_id <> reviewed_user_id)
+    CONSTRAINT pk_ratings PRIMARY KEY (trade_id, reviewer_id),
+    CONSTRAINT fk_rating_reviewer FOREIGN KEY (reviewer_id) REFERENCES Users(user_id),
+    CONSTRAINT fk_rating_reviewed FOREIGN KEY (reviewed_user_id) REFERENCES Users(user_id),
+    CONSTRAINT fk_rating_trade FOREIGN KEY (trade_id) REFERENCES Trades(trade_id),
+    CONSTRAINT chk_rating_value CHECK (rating_value BETWEEN 1 AND 5),
+    CONSTRAINT chk_no_self_rating CHECK (reviewer_id <> reviewed_user_id)
 );
 GO
 
 CREATE INDEX idx_rating_reviewed ON Ratings(reviewed_user_id);
 GO
-
---DROP TRIGGER trg_DeleteUser_AllDependencies
---DROP TRIGGER trg_DeleteWardrobe_AllDependencies
 
 CREATE TRIGGER trg_DeleteUser_AllDependencies
 ON Users
@@ -263,59 +199,40 @@ INSTEAD OF DELETE
 AS
 BEGIN
     SET NOCOUNT ON;
-    -- Delete Messages of deleted user
+
     DELETE M
     FROM Messages M
-    INNER JOIN DELETED D
-        ON M.sender_id = D.user_id;
+    INNER JOIN DELETED D ON M.sender_id = D.user_id;
 
-    -- Delete Conversations of deleted user
     DELETE C
     FROM Conversations C
-    INNER JOIN DELETED D
-        ON C.user1_id = D.user_id
-        OR C.user2_id = D.user_id;
+    INNER JOIN DELETED D ON C.user1_id = D.user_id OR C.user2_id = D.user_id;
 
-    -- Delete SwapRequests of deleted user
     DELETE SR
     FROM SwapRequests SR
-    INNER JOIN DELETED D
-        ON SR.requester_id = D.user_id
-        OR SR.owner_id = D.user_id;
+    INNER JOIN DELETED D ON SR.requested_item_id IN (SELECT item_id FROM WardrobeItems WHERE user_id = D.user_id)
+                         OR SR.offered_item_id IN (SELECT item_id FROM WardrobeItems WHERE user_id = D.user_id);
 
-    -- Nullify Trades of deleted user
     UPDATE T
-    SET buyer_id  = CASE WHEN T.buyer_id  = D.user_id THEN NULL ELSE T.buyer_id  END,
-        seller_id = CASE WHEN T.seller_id = D.user_id THEN NULL ELSE T.seller_id END
+    SET buyer_id = NULL
     FROM Trades T
-    INNER JOIN DELETED D
-        ON T.buyer_id = D.user_id
-        OR T.seller_id = D.user_id;
+    INNER JOIN DELETED D ON T.buyer_id = D.user_id;
 
-    -- Delete Ratings where deleted user was reviewed
     DELETE R
     FROM Ratings R
-    INNER JOIN DELETED D
-        ON R.reviewed_user_id = D.user_id;
+    INNER JOIN DELETED D ON R.reviewed_user_id = D.user_id;
 
-    -- Nullify Ratings where deleted user was reviewer
-    UPDATE R
-    SET reviewer_id = NULL
+    DELETE R
     FROM Ratings R
-    INNER JOIN DELETED D
-        ON R.reviewer_id = D.user_id;
+    INNER JOIN DELETED D ON R.reviewer_id = D.user_id;
 
-    -- Delete WardrobeItems of deleted user (MarketplaceListings deleted by cascade)
     DELETE WI
     FROM WardrobeItems WI
-    INNER JOIN DELETED D
-        ON WI.user_id = D.user_id;
+    INNER JOIN DELETED D ON WI.user_id = D.user_id;
 
-    -- Delete User
     DELETE U
     FROM Users U
-    INNER JOIN DELETED D
-        ON U.user_id = D.user_id;
+    INNER JOIN DELETED D ON U.user_id = D.user_id;
 END;
 GO
 
@@ -326,48 +243,35 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Nullify Trades involving deleted item
     UPDATE T
-    SET T.item_id = NULL
+    SET item_id = NULL
     FROM Trades T
-    INNER JOIN DELETED D
-        ON T.item_id = D.item_id;
+    INNER JOIN DELETED D ON T.item_id = D.item_id;
 
-    -- Delete SwapRequests involving deleted item
     DELETE SR
     FROM SwapRequests SR
-    INNER JOIN DELETED D
-        ON SR.requested_item_id = D.item_id      
-        OR SR.offered_item_id = D.item_id;
+    INNER JOIN DELETED D ON SR.requested_item_id = D.item_id
+                        OR SR.offered_item_id = D.item_id;
 
-    -- Delete WardrobeItem
     DELETE WI
     FROM WardrobeItems WI
-    INNER JOIN DELETED D
-        ON WI.item_id = D.item_id;
+    INNER JOIN DELETED D ON WI.item_id = D.item_id;
 END;
 GO
 
 
----------------for cloudinary 
-ALTER TABLE WardrobeItems
-ADD image_url VARCHAR(500) NULL;
-
-
---DUMMY DATA
-
-INSERT INTO Users (username, email, password_hash, gender, age, rating_avg, total_trades)
+INSERT INTO Users (username, email, password_hash, gender, age)
 VALUES
-    ('alex_styles',    'alex@example.com',    'hash_alex123',    'M', 24, 4.5, 12),
-    ('sara_fit',       'sara@example.com',    'hash_sara456',    'F', 22, 4.8, 20),
-    ('mike_drip',      'mike@example.com',    'hash_mike789',    'M', 27, 3.9, 7),
-    ('luna_closet',    'luna@example.com',    'hash_luna321',    'F', 19, 4.2, 5),
-    ('jay_threads',    'jay@example.com',     'hash_jay654',     'M', 31, 4.7, 18),
-    ('nina_vogue',     'nina@example.com',    'hash_nina987',    'F', 26, 4.0, 9),
-    ('omar_swaps',     'omar@example.com',    'hash_omar111',    'M', 23, 3.5, 3),
-    ('zara_wear',      'zara@example.com',    'hash_zara222',    'F', 28, 4.6, 14),
-    ('leo_fits',       'leo@example.com',     'hash_leo333',     'M', 21, 4.1, 6),
-    ('maya_outfits',   'maya@example.com',    'hash_maya444',    'F', 25, 4.9, 22);
+    ('alex_styles',  'alex@example.com',  'hash_alex123',  'M', 24),
+    ('sara_fit',     'sara@example.com',  'hash_sara456',  'F', 22),
+    ('mike_drip',    'mike@example.com',  'hash_mike789',  'M', 27),
+    ('luna_closet',  'luna@example.com',  'hash_luna321',  'F', 19),
+    ('jay_threads',  'jay@example.com',   'hash_jay654',   'M', 31),
+    ('nina_vogue',   'nina@example.com',  'hash_nina987',  'F', 26),
+    ('omar_swaps',   'omar@example.com',  'hash_omar111',  'M', 23),
+    ('zara_wear',    'zara@example.com',  'hash_zara222',  'F', 28),
+    ('leo_fits',     'leo@example.com',   'hash_leo333',   'M', 21),
+    ('maya_outfits', 'maya@example.com',  'hash_maya444',  'F', 25);
 GO
 
 INSERT INTO WardrobeItems (user_id, title, description, category, size, color, price, allow_sale, allow_swap, status)
@@ -394,52 +298,40 @@ VALUES
     (10, 'Ankle Boots',              'Brown suede, size 38, minimal wear',     'Shoes',      '38', 'Brown',  75.00, 1, 1, 'available');
 GO
 
-INSERT INTO MarketplaceListings (item_id, posted_by)
+INSERT INTO MarketplaceListings (item_id)
 VALUES
-    (1,  1),
-    (2,  1),
-    (3,  2),
-    (4,  2),
-    (6,  3),
-    (7,  4),
-    (8,  4),
-    (9,  5),
-    (11, 6),
-    (13, 7),
-    (15, 8),
-    (20, 10);
-
-
-INSERT INTO SwapRequests (requester_id, owner_id, requested_item_id, offered_item_id, status)
-VALUES
-    (4, 3, 7,  14,  'pending'),     
-    (5, 4, 8,  19,  'completed'),    
-    (6, 5, 10, 11, 'rejected'),     
-    (7, 6, 12, 18, 'pending');
+    (1), (2), (3), (4), (6), (7), (8), (9), (11), (13), (15), (20);
 GO
 
-INSERT INTO Trades (buyer_id, seller_id, item_id, trade_type, status)
+INSERT INTO SwapRequests (requested_item_id, offered_item_id, status)
 VALUES
-    (2,  1,  2,  'buy',  'completed'),  
-    (3,  2,  3,  'buy',  'completed'),   
-    (5,  4,  7,  'buy',  'completed'),   
-    (6,  5,  9,  'buy',  'completed'),   
-    (7,  6,  11, 'buy',  'completed'),   
-    (8,  7,  13, 'buy',  'completed'),   
-    (9,  8,  15, 'buy',  'completed'),   
-    (10, 9,  17, 'buy',  'completed'),   
-    (1,  10, 19, 'buy',  'completed'),  
-    (4,  3,  6,  'buy',  'pending');     
+    (7,  14,  'pending');
+
+INSERT INTO SwapRequests (requested_item_id, offered_item_id, status)
+VALUES
+    (5, 7, 'pending'),
+    (8, 9, 'completed'),
+    (10, 11, 'rejected'),
+    (12, 14, 'pending');
+GO
+
+INSERT INTO Trades (buyer_id, item_id, trade_type, status)
+VALUES
+    (2,  2,  'buy', 'completed'),
+    (3,  3,  'buy', 'completed'),
+    (5,  7,  'buy', 'completed'),
+    (6,  9,  'buy', 'completed'),
+    (7,  11, 'buy', 'completed'),
+    (8,  13, 'buy', 'completed'),
+    (9,  15, 'buy', 'completed'),
+    (10, 17, 'buy', 'completed'),
+    (1,  19, 'buy', 'completed'),
+    (4,  6,  'buy', 'pending');
 GO
 
 INSERT INTO Conversations (user1_id, user2_id)
 VALUES
-    (1, 2),
-    (2, 3),
-    (3, 4),
-    (4, 5),
-    (5, 6),
-    (7, 8);
+    (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (7, 8);
 GO
 
 INSERT INTO Messages (conversation_id, sender_id, message_text)
@@ -468,54 +360,52 @@ GO
 
 INSERT INTO ClothingRequests (user_id, description)
 VALUES
-    (1,  'Looking for a vintage bomber jacket, size M, any color.'),
-    (2,  'Need white sneakers, size 37 or 38, preferably Nike or Adidas.'),
-    (3,  'Searching for an oversized flannel shirt, size L or XL.'),
-    (4,  'Want cute platform sandals for summer, size 37.'),
-    (5,  'Looking for a lightweight raincoat, size L, any color.'),
-    (9,  'Need formal chinos or dress pants, size 30x32, navy or grey.');
+    (1, 'Looking for a vintage bomber jacket, size M, any color.'),
+    (2, 'Need white sneakers, size 37 or 38, preferably Nike or Adidas.'),
+    (3, 'Searching for an oversized flannel shirt, size L or XL.'),
+    (4, 'Want cute platform sandals for summer, size 37.'),
+    (5, 'Looking for a lightweight raincoat, size L, any color.'),
+    (9, 'Need formal chinos or dress pants, size 30x32, navy or grey.');
 GO
 
 INSERT INTO Notifications (user_id, type, reference_id, is_read)
 VALUES
-    (1,  'swap_request',   1,  0),   
-    (2,  'swap_accepted',  2,  1),   
-    (3,  'swap_request',   3,  0),   
-    (4,  'swap_completed', 4,  1),   
-    (5,  'swap_rejected',  5,  0),   
-    (6,  'swap_request',   6,  0),  
-    (2,  'trade_complete', 1,  1),   
-    (3,  'trade_complete', 2,  1),   
-    (5,  'trade_complete', 3,  1),   
-    (6,  'trade_complete', 4,  0),  
-    (1,  'new_message',    1,  0),   
-    (8,  'new_message',    6,  0);   
+    (1, 'swap_request',   1, 0),
+    (2, 'swap_accepted',  2, 1),
+    (3, 'swap_request',   3, 0),
+    (4, 'swap_completed', 4, 1),
+    (5, 'swap_rejected',  5, 0),
+    (6, 'swap_request',   6, 0),
+    (2, 'trade_complete', 1, 1),
+    (3, 'trade_complete', 2, 1),
+    (5, 'trade_complete', 3, 1),
+    (6, 'trade_complete', 4, 0),
+    (1, 'new_message',    1, 0),
+    (8, 'new_message',    6, 0);
 GO
 
-INSERT INTO Ratings (reviewer_id, reviewed_user_id, trade_id, rating_value)
+INSERT INTO Ratings (trade_id, reviewer_id, reviewed_user_id, rating_value)
 VALUES
-    (2,  1,  1, 5),   
-    (1,  2,  1, 4),   
-    (3,  2,  2, 5),   
-    (2,  3,  2, 4),   
-    (5,  4,  3, 5),   
-    (4,  5,  3, 4),   
-    (6,  5,  4, 5),   
-    (5,  6,  4, 3),   
-    (7,  6,  5, 4),   
-    (8,  7,  6, 5);   
+    (1, 2, 1, 5),
+    (1, 1, 2, 4),
+    (2, 3, 2, 5),
+    (2, 2, 3, 4),
+    (3, 5, 4, 5),
+    (3, 4, 5, 4),
+    (4, 6, 5, 5),
+    (4, 5, 6, 3),
+    (5, 7, 6, 4),
+    (6, 8, 7, 5);
 GO
 
-SELECT * FROM Users 
-SELECT * FROM WardrobeItems 
-SELECT * FROM MarketplaceListings 
-SELECT * FROM SwapRequests  
-SELECT * FROM Trades
-SELECT * FROM Conversations  
-SELECT * FROM Messages 
-SELECT * FROM ClothingRequests 
-SELECT * FROM Notifications   
+SELECT * FROM Users;
+SELECT * FROM WardrobeItems;
+SELECT * FROM MarketplaceListings;
+SELECT * FROM SwapRequests;
+SELECT * FROM Trades;
+SELECT * FROM Conversations;
+SELECT * FROM Messages;
+SELECT * FROM ClothingRequests;
+SELECT * FROM Notifications;
 SELECT * FROM Ratings;
 GO
-
-
