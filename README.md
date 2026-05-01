@@ -24,8 +24,8 @@ engineering practices.
 - Ayesha Farooqui (24L-2520)
 
 ## Tech Stack
-- Backend:
-- Frontend: Unity
+- Backend: Node js
+- Frontend: React Native
 - Database: SQL Server
 
 ## How to Run
