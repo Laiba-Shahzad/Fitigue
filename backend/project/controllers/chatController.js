@@ -72,8 +72,7 @@ exports.getChatbox = async (req, res) => {
       .input('my_id', sql.Int, my_id)
       .query(`
         SELECT c.conversation_id,
-               CASE WHEN c.user1_id = @my_id THEN u2.username      ELSE u1.username      END AS other_user,
-               CASE WHEN c.user1_id = @my_id THEN u2.profile_image ELSE u1.profile_image END AS other_user_img,
+               CASE WHEN c.user1_id = @my_id THEN u2.username ELSE u1.username END AS other_user,
                (SELECT TOP 1 message_text FROM Messages
                 WHERE conversation_id = c.conversation_id
                 ORDER BY sent_at DESC) AS last_message,

@@ -4,21 +4,28 @@ const { sql, poolPromise } = require('../config/db');
 exports.getTradeHistory = async (req, res) => {
   try {
     const pool = await poolPromise;
+    const userId = req.user.user_id;
 
     const result = await pool.request()
-      .input('user_id', sql.Int, req.user.user_id)
+      .input('user_id', sql.Int, userId)
       .query(`
         SELECT t.trade_id,
-               CASE WHEN t.buyer_id = @user_id THEN 'Bought' ELSE 'Sold' END AS action,
+               CASE 
+                 WHEN t.buyer_id = @user_id THEN 'Bought' 
+                 ELSE 'Sold' 
+               END AS action,
                wi.title, wi.category, wi.price,
-               CASE WHEN t.buyer_id = @user_id
-                    THEN (SELECT username FROM Users WHERE user_id = t.seller_id)
-                    ELSE (SELECT username FROM Users WHERE user_id = t.buyer_id)
+               CASE 
+                 WHEN t.buyer_id = @user_id 
+                   THEN u_owner.username
+                   ELSE u_buyer.username
                END AS other_party,
                t.trade_type, t.status, t.trade_date
         FROM Trades t
         JOIN WardrobeItems wi ON t.item_id = wi.item_id
-        WHERE t.buyer_id = @user_id OR t.seller_id = @user_id
+        LEFT JOIN Users u_owner ON wi.user_id = u_owner.user_id   -- seller (owner)
+        LEFT JOIN Users u_buyer ON t.buyer_id = u_buyer.user_id   -- buyer
+        WHERE t.buyer_id = @user_id OR wi.user_id = @user_id
         ORDER BY t.trade_date DESC
       `);
 
@@ -32,22 +39,26 @@ exports.getTradeHistory = async (req, res) => {
 exports.getSwapHistory = async (req, res) => {
   try {
     const pool = await poolPromise;
+    const userId = req.user.user_id;
 
     const result = await pool.request()
-      .input('user_id', sql.Int, req.user.user_id)
+      .input('user_id', sql.Int, userId)
       .query(`
         SELECT sr.swap_id,
                req_item.title AS item_wanted,
                off_item.title AS item_offered,
-               CASE WHEN sr.requester_id = @user_id THEN u_owner.username
-                    ELSE u_req.username END AS other_user,
+               CASE 
+                 WHEN off_item.user_id = @user_id 
+                   THEN u_owner.username   -- user is requester => other is owner
+                   ELSE u_req.username     -- user is owner => other is requester
+               END AS other_user,
                sr.status, sr.created_at
         FROM SwapRequests sr
         JOIN WardrobeItems req_item ON sr.requested_item_id = req_item.item_id
-        JOIN WardrobeItems off_item ON sr.offered_item_id = off_item.item_id
-        JOIN Users u_req ON sr.requester_id = u_req.user_id
-        JOIN Users u_owner ON sr.owner_id = u_owner.user_id
-        WHERE sr.requester_id = @user_id OR sr.owner_id = @user_id
+        JOIN WardrobeItems off_item ON sr.offered_item_id   = off_item.item_id
+        JOIN Users u_req ON off_item.user_id = u_req.user_id      -- requester = owner of offered item
+        JOIN Users u_owner ON req_item.user_id = u_owner.user_id  -- owner = owner of requested item
+        WHERE off_item.user_id = @user_id OR req_item.user_id = @user_id
         ORDER BY sr.created_at DESC
       `);
 
@@ -61,14 +72,16 @@ exports.getSwapHistory = async (req, res) => {
 exports.getTradeStatusCount = async (req, res) => {
   try {
     const pool = await poolPromise;
+    const userId = req.user.user_id;
 
     const result = await pool.request()
-      .input('user_id', sql.Int, req.user.user_id)
+      .input('user_id', sql.Int, userId)
       .query(`
-        SELECT status, COUNT(*) AS count
-        FROM Trades
-        WHERE buyer_id = @user_id OR seller_id = @user_id
-        GROUP BY status
+        SELECT t.status, COUNT(*) AS count
+        FROM Trades t
+        JOIN WardrobeItems wi ON t.item_id = wi.item_id
+        WHERE t.buyer_id = @user_id OR wi.user_id = @user_id
+        GROUP BY t.status
       `);
 
     res.json(result.recordset);
@@ -88,8 +101,8 @@ exports.cancelTrade = async (req, res) => {
       .query(`
         UPDATE Trades
         SET status = 'cancelled'
-        WHERE trade_id = @trade_id AND status = 'pending'`
-    );
+        WHERE trade_id = @trade_id AND status = 'pending'
+      `);
 
     res.json({ message: 'Trade cancelled successfully' });
   } catch (err) {

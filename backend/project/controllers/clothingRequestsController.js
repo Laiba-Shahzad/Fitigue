@@ -24,8 +24,13 @@ exports.getAllClothingRequests = async (req, res) => {
     const pool = await poolPromise;
 
     const result = await pool.request().query(`
-      SELECT cr.request_id, u.username, u.profile_image, u.rating_avg,
-             cr.description, cr.created_at
+      SELECT cr.request_id,
+             u.username,
+             (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1))) 
+              FROM Ratings r 
+              WHERE r.reviewed_user_id = u.user_id) AS rating_avg,
+             cr.description,
+             cr.created_at
       FROM ClothingRequests cr
       JOIN Users u ON cr.user_id = u.user_id
       ORDER BY cr.created_at DESC

@@ -3,24 +3,41 @@ const { sql, poolPromise } = require('../config/db');
 // ─── 1. SEND SWAP REQUEST ────────────────────────────────────────
 exports.sendSwapRequest = async (req, res) => {
   try {
-    const { owner_id, requested_item_id, offered_item_id } = req.body;
+    const { requested_item_id, offered_item_id } = req.body; // no more owner_id
     const requester_id = req.user.user_id;
     const pool = await poolPromise;
 
+    // Verify offered item belongs to logged‑in user
+    const offeredItem = await pool.request()
+      .input('item_id', sql.Int, offered_item_id)
+      .query(`SELECT user_id FROM WardrobeItems WHERE item_id = @item_id`);
+
+    if (!offeredItem.recordset[0] || offeredItem.recordset[0].user_id !== requester_id) {
+      return res.status(403).json({ message: 'You can only offer your own items' });
+    }
+
+    // Verify requested item belongs to a different user
+    const requestedItem = await pool.request()
+      .input('item_id', sql.Int, requested_item_id)
+      .query(`SELECT user_id FROM WardrobeItems WHERE item_id = @item_id`);
+
+    if (!requestedItem.recordset[0]) return res.status(404).json({ message: 'Requested item not found' });
+    const owner_id = requestedItem.recordset[0].user_id;
+    if (owner_id === requester_id) return res.status(400).json({ message: 'Cannot swap your own item' });
+
+    // Insert swap request (requester & owner are derived from items)
     const result = await pool.request()
-      .input('requester_id',     sql.Int, requester_id)
-      .input('owner_id',         sql.Int, owner_id)
       .input('requested_item_id', sql.Int, requested_item_id)
-      .input('offered_item_id',  sql.Int, offered_item_id)
+      .input('offered_item_id',   sql.Int, offered_item_id)
       .query(`
-        INSERT INTO SwapRequests (requester_id, owner_id, requested_item_id, offered_item_id, status)
+        INSERT INTO SwapRequests (requested_item_id, offered_item_id, status)
         OUTPUT INSERTED.swap_id
-        VALUES (@requester_id, @owner_id, @requested_item_id, @offered_item_id, 'pending')
+        VALUES (@requested_item_id, @offered_item_id, 'pending')
       `);
 
     const swap_id = result.recordset[0].swap_id;
 
-    // Notify owner of incoming swap request
+    // Notify the owner of the requested item
     await pool.request()
       .input('owner_id', sql.Int, owner_id)
       .input('swap_id',  sql.Int, swap_id)
@@ -39,20 +56,24 @@ exports.sendSwapRequest = async (req, res) => {
 exports.getIncomingRequests = async (req, res) => {
   try {
     const pool = await poolPromise;
+    const user_id = req.user.user_id;
 
     const result = await pool.request()
-      .input('owner_id', sql.Int, req.user.user_id)
+      .input('user_id', sql.Int, user_id)
       .query(`
-        SELECT sr.swap_id, u_req.username AS requester, u_req.profile_image,
-               u_req.rating_avg,
+        SELECT sr.swap_id,
+               u_req.username AS requester,
+               (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1)))
+                FROM Ratings r
+                WHERE r.reviewed_user_id = u_req.user_id) AS rating_avg,
                req_item.title AS requested_item,
                off_item.title AS offered_item, off_item.size, off_item.color,
                sr.status, sr.created_at
         FROM SwapRequests sr
-        JOIN Users u_req             ON sr.requester_id      = u_req.user_id
-        JOIN WardrobeItems req_item  ON sr.requested_item_id = req_item.item_id
-        JOIN WardrobeItems off_item  ON sr.offered_item_id   = off_item.item_id
-        WHERE sr.owner_id = @owner_id AND sr.status = 'pending'
+        JOIN WardrobeItems req_item ON sr.requested_item_id = req_item.item_id
+        JOIN WardrobeItems off_item ON sr.offered_item_id   = off_item.item_id
+        JOIN Users u_req ON off_item.user_id = u_req.user_id   -- requester = owner of offered item
+        WHERE req_item.user_id = @user_id AND sr.status = 'pending'
         ORDER BY sr.created_at DESC
       `);
 
@@ -66,19 +87,21 @@ exports.getIncomingRequests = async (req, res) => {
 exports.getOutgoingRequests = async (req, res) => {
   try {
     const pool = await poolPromise;
+    const user_id = req.user.user_id;
 
     const result = await pool.request()
-      .input('requester_id', sql.Int, req.user.user_id)
+      .input('user_id', sql.Int, user_id)
       .query(`
-        SELECT sr.swap_id, u_owner.username AS owner,
+        SELECT sr.swap_id,
+               u_owner.username AS owner,
                req_item.title AS i_want,
                off_item.title AS i_offered,
                sr.status, sr.created_at
         FROM SwapRequests sr
-        JOIN Users u_owner           ON sr.owner_id          = u_owner.user_id
-        JOIN WardrobeItems req_item  ON sr.requested_item_id = req_item.item_id
-        JOIN WardrobeItems off_item  ON sr.offered_item_id   = off_item.item_id
-        WHERE sr.requester_id = @requester_id
+        JOIN WardrobeItems req_item ON sr.requested_item_id = req_item.item_id
+        JOIN WardrobeItems off_item ON sr.offered_item_id   = off_item.item_id
+        JOIN Users u_owner ON req_item.user_id = u_owner.user_id   -- owner = owner of requested item
+        WHERE off_item.user_id = @user_id   -- requester = owner of offered item
         ORDER BY sr.created_at DESC
       `);
 
@@ -93,31 +116,30 @@ exports.acceptSwapRequest = async (req, res) => {
   try {
     const pool = await poolPromise;
     const swap_id  = req.params.id;
-    const owner_id = req.user.user_id;
+    const user_id = req.user.user_id;
 
-    // Fetch swap to get requester_id for notification
+    // Fetch swap details to verify ownership and get requester id
     const swap = await pool.request()
-      .input('swap_id',  sql.Int, swap_id)
-      .input('owner_id', sql.Int, owner_id)
+      .input('swap_id', sql.Int, swap_id)
       .query(`
-        SELECT requester_id FROM SwapRequests
-        WHERE swap_id = @swap_id AND owner_id = @owner_id AND status = 'pending'
+        SELECT req_item.user_id AS owner_id, off_item.user_id AS requester_id
+        FROM SwapRequests sr
+        JOIN WardrobeItems req_item ON sr.requested_item_id = req_item.item_id
+        JOIN WardrobeItems off_item ON sr.offered_item_id   = off_item.item_id
+        WHERE sr.swap_id = @swap_id AND sr.status = 'pending'
       `);
 
-    if (!swap.recordset[0]) return res.status(404).json({ message: 'Swap request not found' });
+    if (!swap.recordset[0]) return res.status(404).json({ message: 'Swap request not found or not pending' });
 
-    const requester_id = swap.recordset[0].requester_id;
+    const { owner_id, requester_id } = swap.recordset[0];
+    if (owner_id !== user_id) return res.status(403).json({ message: 'You can only accept requests for your own items' });
 
     // Update status to accepted
     await pool.request()
-      .input('swap_id',  sql.Int, swap_id)
-      .input('owner_id', sql.Int, owner_id)
-      .query(`
-        UPDATE SwapRequests SET status = 'accepted'
-        WHERE swap_id = @swap_id AND owner_id = @owner_id
-      `);
+      .input('swap_id', sql.Int, swap_id)
+      .query(`UPDATE SwapRequests SET status = 'accepted' WHERE swap_id = @swap_id`);
 
-    // Notify requester of acceptance
+    // Notify requester
     await pool.request()
       .input('requester_id', sql.Int, requester_id)
       .input('swap_id',      sql.Int, swap_id)
@@ -137,31 +159,30 @@ exports.rejectSwapRequest = async (req, res) => {
   try {
     const pool = await poolPromise;
     const swap_id  = req.params.id;
-    const owner_id = req.user.user_id;
+    const user_id = req.user.user_id;
 
-    // Fetch swap to get requester_id for notification
+    // Fetch swap details to verify ownership and get requester
     const swap = await pool.request()
-      .input('swap_id',  sql.Int, swap_id)
-      .input('owner_id', sql.Int, owner_id)
+      .input('swap_id', sql.Int, swap_id)
       .query(`
-        SELECT requester_id FROM SwapRequests
-        WHERE swap_id = @swap_id AND owner_id = @owner_id AND status = 'pending'
+        SELECT req_item.user_id AS owner_id, off_item.user_id AS requester_id
+        FROM SwapRequests sr
+        JOIN WardrobeItems req_item ON sr.requested_item_id = req_item.item_id
+        JOIN WardrobeItems off_item ON sr.offered_item_id   = off_item.item_id
+        WHERE sr.swap_id = @swap_id AND sr.status = 'pending'
       `);
 
-    if (!swap.recordset[0]) return res.status(404).json({ message: 'Swap request not found' });
+    if (!swap.recordset[0]) return res.status(404).json({ message: 'Swap request not found or not pending' });
 
-    const requester_id = swap.recordset[0].requester_id;
+    const { owner_id, requester_id } = swap.recordset[0];
+    if (owner_id !== user_id) return res.status(403).json({ message: 'You can only reject requests for your own items' });
 
     // Update status to rejected
     await pool.request()
-      .input('swap_id',  sql.Int, swap_id)
-      .input('owner_id', sql.Int, owner_id)
-      .query(`
-        UPDATE SwapRequests SET status = 'rejected'
-        WHERE swap_id = @swap_id AND owner_id = @owner_id
-      `);
+      .input('swap_id', sql.Int, swap_id)
+      .query(`UPDATE SwapRequests SET status = 'rejected' WHERE swap_id = @swap_id`);
 
-    // Notify requester of rejection
+    // Notify requester
     await pool.request()
       .input('requester_id', sql.Int, requester_id)
       .input('swap_id',      sql.Int, swap_id)
@@ -182,11 +203,12 @@ exports.completeSwap = async (req, res) => {
     const pool = await poolPromise;
     const swap_id = req.params.id;
 
-    // Fetch both item IDs from the swap
+    // Fetch the swap, ensure status is 'accepted'
     const swap = await pool.request()
       .input('swap_id', sql.Int, swap_id)
       .query(`
-        SELECT requested_item_id, offered_item_id FROM SwapRequests
+        SELECT requested_item_id, offered_item_id
+        FROM SwapRequests
         WHERE swap_id = @swap_id AND status = 'accepted'
       `);
 
@@ -194,7 +216,7 @@ exports.completeSwap = async (req, res) => {
 
     const { requested_item_id, offered_item_id } = swap.recordset[0];
 
-    // Mark swap as completed
+    // Update status to completed
     await pool.request()
       .input('swap_id', sql.Int, swap_id)
       .query(`UPDATE SwapRequests SET status = 'completed' WHERE swap_id = @swap_id`);
@@ -218,13 +240,20 @@ exports.completeSwap = async (req, res) => {
 exports.cancelSwapRequest = async (req, res) => {
   try {
     const pool = await poolPromise;
+    const user_id = req.user.user_id;
+    const swap_id = req.params.id;
 
+    // Only the requester (owner of offered item) can cancel, and status must be 'pending'
     await pool.request()
-      .input('swap_id',      sql.Int, req.params.id)
-      .input('requester_id', sql.Int, req.user.user_id)
+      .input('swap_id', sql.Int, swap_id)
+      .input('user_id', sql.Int, user_id)
       .query(`
-        DELETE FROM SwapRequests
-        WHERE swap_id = @swap_id AND requester_id = @requester_id AND status = 'pending'
+        DELETE sr
+        FROM SwapRequests sr
+        JOIN WardrobeItems off_item ON sr.offered_item_id = off_item.item_id
+        WHERE sr.swap_id = @swap_id
+          AND off_item.user_id = @user_id
+          AND sr.status = 'pending'
       `);
 
     res.json({ message: 'Swap request cancelled' });

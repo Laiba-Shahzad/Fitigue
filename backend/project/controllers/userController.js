@@ -2,10 +2,10 @@ const { sql, poolPromise } = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-//  1. REGISTER 
+//  1. REGISTER
 exports.register = async (req, res) => {
   try {
-    const { username, email, password, profile_image, gender, age } = req.body;
+    const { username, email, password, gender, age } = req.body;
     const pool = await poolPromise;
 
     // Check if username exists
@@ -16,18 +16,18 @@ exports.register = async (req, res) => {
     if (check.recordset[0].exists_flag > 0)
       return res.status(409).json({ message: 'Username already taken' });
 
-    const password_hash = password; // store as plain text
+    const saltRounds = 10;
+    const password_hash = await bcrypt.hash(password, saltRounds);
 
     await pool.request()
       .input('username',      sql.VarChar,  username)
       .input('email',         sql.VarChar,  email)
       .input('password_hash', sql.VarChar,  password_hash)
-      .input('profile_image', sql.VarChar,  profile_image || null)
       .input('gender',        sql.Char(1),  gender || null)
       .input('age',           sql.Int,      age || null)
       .query(`
-        INSERT INTO Users (username, email, password_hash, profile_image, gender, age)
-        VALUES (@username, @email, @password_hash, @profile_image, @gender, @age)
+        INSERT INTO Users (username, email, password_hash, gender, age)
+        VALUES (@username, @email, @password_hash, @gender, @age)
       `);
 
     res.status(201).json({ message: 'User registered successfully' });
@@ -36,7 +36,7 @@ exports.register = async (req, res) => {
   }
 };
 
-// ─── 2. LOGIN ───────────────────────────────────────────────────
+// ─── 2. LOGIN ──────────────
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -45,22 +45,38 @@ exports.login = async (req, res) => {
     const result = await pool.request()
       .input('username', sql.VarChar, username)
       .query(`
-        SELECT user_id, username, email, profile_image, rating_avg, total_trades, password_hash
-        FROM Users
-        WHERE username = @username
+        SELECT 
+          u.user_id, 
+          u.username, 
+          u.email, 
+          u.password_hash,
+          -- computed rating average
+          (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1))) 
+           FROM Ratings r 
+           WHERE r.reviewed_user_id = u.user_id) AS rating_avg,
+          -- computed total trades (as buyer + seller through owned items)
+          (SELECT COUNT(*) FROM Trades WHERE buyer_id = u.user_id)
+          + (SELECT COUNT(*) 
+             FROM Trades t 
+             INNER JOIN WardrobeItems wi ON t.item_id = wi.item_id 
+             WHERE wi.user_id = u.user_id) AS total_trades
+        FROM Users u
+        WHERE u.username = @username
       `);
 
     const user = result.recordset[0];
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const match = password === user.password_hash;
+    const match = await bcrypt.compare(password, user.password_hash);
     if (!match) return res.status(401).json({ message: 'Incorrect password' });
+
     const token = jwt.sign(
       { user_id: user.user_id, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
+    // Remove password hash from output
     const { password_hash, ...userData } = user;
     res.json({ token, user: userData });
   } catch (err) {
@@ -68,17 +84,42 @@ exports.login = async (req, res) => {
   }
 };
 
-// ─── 3. VIEW OWN PROFILE ────────────────────────────────────────
+// ─── 3. VIEW OWN PROFILE ────────────────────────────
 exports.getOwnProfile = async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request()
       .input('user_id', sql.Int, req.user.user_id)
       .query(`
-        SELECT u.user_id, u.username, u.profile_image, u.gender, u.age,
-               u.rating_avg, u.total_trades, u.created_at,
-               (SELECT COUNT(*) FROM WardrobeItems WHERE user_id = u.user_id) AS wardrobe_count,
-               (SELECT COUNT(*) FROM MarketplaceListings WHERE posted_by = u.user_id) AS total_posts
+        SELECT 
+          u.user_id, 
+          u.username, 
+          u.gender, 
+          u.age,
+          u.created_at,
+
+          -- computed rating average
+          (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1))) 
+           FROM Ratings r 
+           WHERE r.reviewed_user_id = u.user_id) AS rating_avg,
+
+          -- computed total trades
+          (SELECT COUNT(*) FROM Trades WHERE buyer_id = u.user_id)
+          + (SELECT COUNT(*) 
+             FROM Trades t 
+             INNER JOIN WardrobeItems wi ON t.item_id = wi.item_id 
+             WHERE wi.user_id = u.user_id) AS total_trades,
+
+          -- wardrobe count
+          (SELECT COUNT(*) 
+           FROM WardrobeItems 
+           WHERE user_id = u.user_id) AS wardrobe_count,
+
+          -- total posts (via MarketplaceListings joined to their items)
+          (SELECT COUNT(*) 
+           FROM MarketplaceListings ml 
+           INNER JOIN WardrobeItems wi ON ml.item_id = wi.item_id 
+           WHERE wi.user_id = u.user_id) AS total_posts
         FROM Users u
         WHERE u.user_id = @user_id
       `);
@@ -89,16 +130,38 @@ exports.getOwnProfile = async (req, res) => {
   }
 };
 
-// ─── 4. VIEW ANOTHER USER'S PROFILE ────────────────────────────
+// ─── 4. VIEW ANOTHER USER'S PROFILE ─────────────────
 exports.getUserProfile = async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request()
       .input('user_id', sql.Int, req.params.id)
       .query(`
-        SELECT u.username, u.profile_image, u.rating_avg, u.total_trades,
-               (SELECT COUNT(*) FROM WardrobeItems WHERE user_id = u.user_id AND status = 'available') AS active_items,
-               (SELECT COUNT(*) FROM MarketplaceListings WHERE posted_by = u.user_id) AS total_posts
+        SELECT 
+          u.username, 
+
+          -- computed rating average
+          (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1))) 
+           FROM Ratings r 
+           WHERE r.reviewed_user_id = u.user_id) AS rating_avg,
+
+          -- computed total trades
+          (SELECT COUNT(*) FROM Trades WHERE buyer_id = u.user_id)
+          + (SELECT COUNT(*) 
+             FROM Trades t 
+             INNER JOIN WardrobeItems wi ON t.item_id = wi.item_id 
+             WHERE wi.user_id = u.user_id) AS total_trades,
+
+          -- active items
+          (SELECT COUNT(*) 
+           FROM WardrobeItems 
+           WHERE user_id = u.user_id AND status = 'available') AS active_items,
+
+          -- total posts (via marketplace)
+          (SELECT COUNT(*) 
+           FROM MarketplaceListings ml 
+           INNER JOIN WardrobeItems wi ON ml.item_id = wi.item_id 
+           WHERE wi.user_id = u.user_id) AS total_posts
         FROM Users u
         WHERE u.user_id = @user_id
       `);
@@ -113,17 +176,16 @@ exports.getUserProfile = async (req, res) => {
 // ─── 5. EDIT PROFILE ────────────────────────────────────────────
 exports.editProfile = async (req, res) => {
   try {
-    const { username, profile_image, age } = req.body;
+    const { username, age } = req.body;
     const pool = await poolPromise;
 
     await pool.request()
       .input('username',      sql.VarChar, username)
-      .input('profile_image', sql.VarChar, profile_image)
       .input('age',           sql.Int,     age)
       .input('user_id',       sql.Int,     req.user.user_id)
       .query(`
         UPDATE Users
-        SET username = @username, profile_image = @profile_image, age = @age
+        SET username = @username, age = @age
         WHERE user_id = @user_id
       `);
 

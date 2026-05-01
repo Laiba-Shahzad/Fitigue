@@ -5,7 +5,7 @@ const { cloudinary } = require('../config/cloudinary');
 exports.addItem = async (req, res) => {
   try {
     const { title, description, category, size, color, price, allow_sale, allow_swap } = req.body;
-    const image_url = req.file ? req.file.path : null; //cloudinary URL
+    const image_url = req.file ? req.file.path : null; // cloudinary URL
     const pool = await poolPromise;
 
     await pool.request()
@@ -106,7 +106,7 @@ exports.getMyWardrobe = async (req, res) => {
   }
 };
 
-// ─── 3. VIEW SINGLE WARDROBE ITEM ──────────────────────────────
+// ─── 3. VIEW SINGLE WARDROBE ITEM ──────
 exports.getItem = async (req, res) => {
   try {
     const pool = await poolPromise;
@@ -114,7 +114,11 @@ exports.getItem = async (req, res) => {
     const result = await pool.request()
       .input('item_id', sql.Int, req.params.id)
       .query(`
-        SELECT wi.*, u.username, u.rating_avg
+        SELECT wi.*, 
+               u.username, 
+               (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1))) 
+                FROM Ratings r 
+                WHERE r.reviewed_user_id = u.user_id) AS rating_avg
         FROM WardrobeItems wi
         JOIN Users u ON wi.user_id = u.user_id
         WHERE wi.item_id = @item_id
@@ -193,4 +197,3 @@ exports.deleteItem = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-

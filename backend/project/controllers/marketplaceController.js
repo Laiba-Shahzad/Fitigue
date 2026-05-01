@@ -7,9 +7,8 @@ exports.postListing = async (req, res) => {
     const pool = await poolPromise;
 
     await pool.request()
-      .input('item_id',   sql.Int, item_id)
-      .input('posted_by', sql.Int, req.user.user_id)
-      .query(`INSERT INTO MarketplaceListings (item_id, posted_by) VALUES (@item_id, @posted_by)`);
+      .input('item_id', sql.Int, item_id)
+      .query(`INSERT INTO MarketplaceListings (item_id) VALUES (@item_id)`);
 
     res.status(201).json({ message: 'Item posted to marketplace' });
   } catch (err) {
@@ -26,10 +25,14 @@ exports.getAllListings = async (req, res) => {
       SELECT ml.listing_id, wi.item_id, wi.title, wi.description,
              wi.category, wi.size, wi.color, wi.price,
              wi.allow_sale, wi.allow_swap,
-             u.username, u.rating_avg, ml.posted_at
+             u.username,
+             (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1)))
+              FROM Ratings r
+              WHERE r.reviewed_user_id = wi.user_id) AS rating_avg,
+             ml.posted_at
       FROM MarketplaceListings ml
       JOIN WardrobeItems wi ON ml.item_id = wi.item_id
-      JOIN Users u ON ml.posted_by = u.user_id
+      JOIN Users u ON wi.user_id = u.user_id
       WHERE wi.status = 'available'
       ORDER BY ml.posted_at DESC
     `);
@@ -46,13 +49,13 @@ exports.getUserListings = async (req, res) => {
     const pool = await poolPromise;
 
     const result = await pool.request()
-      .input('posted_by', sql.Int, req.params.userId)
+      .input('user_id', sql.Int, req.params.userId)
       .query(`
         SELECT ml.listing_id, wi.title, wi.category, wi.price,
                wi.allow_sale, wi.allow_swap, wi.status, ml.posted_at
         FROM MarketplaceListings ml
         JOIN WardrobeItems wi ON ml.item_id = wi.item_id
-        WHERE ml.posted_by = @posted_by
+        WHERE wi.user_id = @user_id
         ORDER BY ml.posted_at DESC
       `);
 
@@ -69,8 +72,16 @@ exports.removeListing = async (req, res) => {
 
     await pool.request()
       .input('listing_id', sql.Int, req.params.id)
-      .input('posted_by',  sql.Int, req.user.user_id)
-      .query(`DELETE FROM MarketplaceListings WHERE listing_id = @listing_id AND posted_by = @posted_by`);
+      .input('user_id',    sql.Int, req.user.user_id)
+      .query(`
+        DELETE FROM MarketplaceListings
+        WHERE listing_id = @listing_id
+          AND EXISTS (
+            SELECT 1 FROM WardrobeItems
+            WHERE item_id = MarketplaceListings.item_id
+            AND user_id = @user_id
+          )
+      `);
 
     res.json({ message: 'Listing removed' });
   } catch (err) {
@@ -88,11 +99,18 @@ exports.getListingDetail = async (req, res) => {
       .query(`
         SELECT wi.item_id, wi.title, wi.description, wi.category,
                wi.size, wi.color, wi.price, wi.allow_sale, wi.allow_swap,
-               u.user_id, u.username, u.profile_image, u.rating_avg, u.total_trades,
+               u.user_id, u.username,
+               (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1)))
+                FROM Ratings r
+                WHERE r.reviewed_user_id = wi.user_id) AS rating_avg,
+               (SELECT COUNT(*) FROM Trades WHERE buyer_id = u.user_id)
+               + (SELECT COUNT(*) FROM Trades t
+                  INNER JOIN WardrobeItems w ON t.item_id = w.item_id
+                  WHERE w.user_id = u.user_id) AS total_trades,
                ml.posted_at
         FROM MarketplaceListings ml
         JOIN WardrobeItems wi ON ml.item_id = wi.item_id
-        JOIN Users u ON ml.posted_by = u.user_id
+        JOIN Users u ON wi.user_id = u.user_id
         WHERE ml.listing_id = @listing_id
       `);
 
@@ -113,10 +131,14 @@ exports.filterListings = async (req, res) => {
     let query = `
       SELECT ml.listing_id, wi.item_id, wi.title, wi.category,
              wi.size, wi.color, wi.price, wi.allow_sale, wi.allow_swap,
-             u.username, u.rating_avg, ml.posted_at
+             u.username,
+             (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1)))
+              FROM Ratings r
+              WHERE r.reviewed_user_id = wi.user_id) AS rating_avg,
+             ml.posted_at
       FROM MarketplaceListings ml
       JOIN WardrobeItems wi ON ml.item_id = wi.item_id
-      JOIN Users u ON ml.posted_by = u.user_id
+      JOIN Users u ON wi.user_id = u.user_id
       WHERE wi.status = 'available'
     `;
 
