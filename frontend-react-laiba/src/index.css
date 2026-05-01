@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --purple-dark:  #540863;
+  --purple-mid:   #92487A;
+  --pink-light:   #E49BA6;
+  --pink-pale:    #FFD3D5;
+  --white:        #ffffff;
+  --gray:         #f5f5f5;
+  --text:         #1a1a1a;
+  --text-muted:   #888;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--gray);
+  color: var(--text);
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: white;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #ddd;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--purple-mid);
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-primary {
+  background: var(--purple-dark);
+  color: white;
+  border: none;
+  padding: 13px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  width: 100%;
+}
+
+.btn-secondary {
+  background: var(--pink-pale);
+  color: var(--purple-dark);
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--purple-dark);
+  border: 1.5px solid var(--purple-dark);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.card {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+}
+
+.page {
+  padding: 16px;
+  padding-bottom: 80px;
+}
+
+.error {
+  color: red;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--pink-pale);
+  color: var(--purple-dark);
+}
