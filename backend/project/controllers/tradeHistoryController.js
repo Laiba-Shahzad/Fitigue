@@ -11,21 +11,21 @@ exports.getTradeHistory = async (req, res) => {
       .query(`
         SELECT t.trade_id,
                CASE 
-                 WHEN t.buyer_id = @user_id THEN 'Bought' 
+                 WHEN t.buyer_id = @user_id THEN CASE WHEN t.trade_type = 'swap' THEN 'Swapped' ELSE 'Bought' END
                  ELSE 'Sold' 
                END AS action,
-               wi.title, wi.category, wi.price,
+               wi.title, wi.category, 
                CASE 
                  WHEN t.buyer_id = @user_id 
                    THEN u_owner.username
                    ELSE u_buyer.username
                END AS other_party,
-               t.trade_type, t.status, t.trade_date
+               t.status, t.trade_date
         FROM Trades t
-        JOIN WardrobeItems wi ON t.item_id = wi.item_id
+        LEFT JOIN WardrobeItems wi ON t.item_id = wi.item_id
         LEFT JOIN Users u_owner ON wi.user_id = u_owner.user_id   -- seller (owner)
         LEFT JOIN Users u_buyer ON t.buyer_id = u_buyer.user_id   -- buyer
-        WHERE t.buyer_id = @user_id OR wi.user_id = @user_id
+        WHERE (t.buyer_id = @user_id OR wi.user_id = @user_id) AND t.status = 'completed'
         ORDER BY t.trade_date DESC
       `);
 
@@ -58,7 +58,7 @@ exports.getSwapHistory = async (req, res) => {
         JOIN WardrobeItems off_item ON sr.offered_item_id   = off_item.item_id
         JOIN Users u_req ON off_item.user_id = u_req.user_id      -- requester = owner of offered item
         JOIN Users u_owner ON req_item.user_id = u_owner.user_id  -- owner = owner of requested item
-        WHERE off_item.user_id = @user_id OR req_item.user_id = @user_id
+        WHERE (off_item.user_id = @user_id OR req_item.user_id = @user_id) AND sr.status = 'completed'
         ORDER BY sr.created_at DESC
       `);
 

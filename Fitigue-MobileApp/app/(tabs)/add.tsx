@@ -1,21 +1,25 @@
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, Image, Alert,
+  StyleSheet, ScrollView, Image, Alert, ActivityIndicator,
 } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../constants/Colors';
+import { wardrobeAPI } from '../../src/api/apiClient';
+import { useAuth } from '../../src/context/AuthContext';
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL'];
-const CATEGORIES = ['Shirt', 'Pants', 'Dress', 'Shoes', 'Scarf', 'Jacket', 'Other'];
+const CATEGORIES = ['Top', 'Bottom', 'Dress', 'Shoes', 'Accessories', 'Outerwear', 'Other'];
 
 export default function AddScreen() {
+  const { isSignedIn } = useAuth();
   const [image, setImage] = useState<string | null>(null);
   const [size, setSize] = useState('');
-  const [category, setCategory] = useState('Shirt');
+  const [category, setCategory] = useState('Top');
   const [sell, setSell] = useState(false);
   const [swap, setSwap] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: '', description: '', price: '', colour: '',
   });
@@ -71,6 +75,92 @@ export default function AddScreen() {
     }
   };
 
+  const handleSubmit = async () => {
+    // Validation
+    if (!isSignedIn) {
+      Alert.alert('Error', 'Please log in first to add items.');
+      return;
+    }
+
+    if (!form.name.trim()) {
+      Alert.alert('Error', 'Please enter an item name.');
+      return;
+    }
+
+    if (!form.price.trim()) {
+      Alert.alert('Error', 'Please enter a price.');
+      return;
+    }
+
+    if (!size) {
+      Alert.alert('Error', 'Please select a size.');
+      return;
+    }
+
+    if (!form.colour.trim()) {
+      Alert.alert('Error', 'Please enter a color.');
+      return;
+    }
+
+    if (!sell && !swap) {
+      Alert.alert('Error', 'Please select at least Sell or Swap option.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Create FormData for multipart upload with image
+      const formData = new FormData();
+      formData.append('title', form.name);
+      formData.append('description', form.description);
+      formData.append('category', category);
+      formData.append('size', size);
+      formData.append('color', form.colour);
+      formData.append('price', form.price);
+      formData.append('allow_sale', sell ? '1' : '0');
+      formData.append('allow_swap', swap ? '1' : '0');
+
+      // Backend: multer.upload.single('image') — field name must be "image"
+      if (image) {
+        const filename = image.split('/').pop() || 'photo.jpg';
+        const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+        const mime =
+          ext === 'png' ? 'image/png' :
+          ext === 'webp' ? 'image/webp' :
+          'image/jpeg';
+        formData.append('image', {
+          uri: image,
+          type: mime,
+          name: filename,
+        } as any);
+      }
+
+      // Submit to backend
+      const response = await wardrobeAPI.addItem(formData);
+
+      Alert.alert('Success', 'Item added to wardrobe!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Reset form
+            setForm({ name: '', description: '', price: '', colour: '' });
+            setImage(null);
+            setSize('');
+            setCategory('Top');
+            setSell(false);
+            setSwap(false);
+          },
+        },
+      ]);
+    } catch (error: any) {
+      console.error('Error adding item:', error);
+      Alert.alert('Error', error.message || 'Failed to add item. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -80,7 +170,11 @@ export default function AddScreen() {
       <Text style={styles.title}>Add to Wardrobe</Text>
 
       {/* Image picker — shows preview once selected */}
-      <TouchableOpacity style={styles.imgPicker} onPress={pickImage}>
+      <TouchableOpacity 
+        style={styles.imgPicker} 
+        onPress={pickImage}
+        disabled={loading}
+      >
         {image ? (
           <>
             <Image source={{ uri: image }} style={styles.preview} />
@@ -104,6 +198,7 @@ export default function AddScreen() {
         placeholderTextColor={Colors.card}
         value={form.name}
         onChangeText={v => update('name', v)}
+        editable={!loading}
       />
 
       <Text style={styles.label}>Description:</Text>
@@ -116,6 +211,7 @@ export default function AddScreen() {
         textAlignVertical="top"
         value={form.description}
         onChangeText={v => update('description', v)}
+        editable={!loading}
       />
 
       <Text style={styles.label}>Price:</Text>
@@ -126,6 +222,7 @@ export default function AddScreen() {
         keyboardType="numeric"
         value={form.price}
         onChangeText={v => update('price', v)}
+        editable={!loading}
       />
 
       <Text style={styles.label}>Size:</Text>
@@ -134,7 +231,8 @@ export default function AddScreen() {
           <TouchableOpacity
             key={s}
             style={[styles.sizeBtn, size === s && styles.sizeBtnOn]}
-            onPress={() => setSize(s)}
+            onPress={() => !loading && setSize(s)}
+            disabled={loading}
           >
             <Text style={[styles.sizeTxt, size === s && styles.sizeTxtOn]}>{s}</Text>
           </TouchableOpacity>
@@ -148,6 +246,7 @@ export default function AddScreen() {
         placeholderTextColor={Colors.card}
         value={form.colour}
         onChangeText={v => update('colour', v)}
+        editable={!loading}
       />
 
       <Text style={styles.label}>Category:</Text>
@@ -157,7 +256,8 @@ export default function AddScreen() {
             <TouchableOpacity
               key={c}
               style={[styles.catBtn, category === c && styles.catBtnOn]}
-              onPress={() => setCategory(c)}
+              onPress={() => !loading && setCategory(c)}
+              disabled={loading}
             >
               <Text style={[styles.catTxt, category === c && styles.catTxtOn]}>{c}</Text>
             </TouchableOpacity>
@@ -166,18 +266,34 @@ export default function AddScreen() {
       </ScrollView>
 
       <View style={styles.checkRow}>
-        <TouchableOpacity style={styles.check} onPress={() => setSell(!sell)}>
+        <TouchableOpacity 
+          style={styles.check} 
+          onPress={() => !loading && setSell(!sell)}
+          disabled={loading}
+        >
           <View style={[styles.box, sell && styles.boxOn]} />
           <Text style={styles.checkLabel}>Sell</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.check} onPress={() => setSwap(!swap)}>
+        <TouchableOpacity 
+          style={styles.check} 
+          onPress={() => !loading && setSwap(!swap)}
+          disabled={loading}
+        >
           <View style={[styles.box, swap && styles.boxOn]} />
           <Text style={styles.checkLabel}>Swap</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.submitBtn}>
-        <Text style={styles.submitTxt}>Add Item</Text>
+      <TouchableOpacity 
+        style={[styles.submitBtn, loading && styles.submitBtnDisabled]} 
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color={Colors.white} />
+        ) : (
+          <Text style={styles.submitTxt}>Add Item</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -240,6 +356,9 @@ const styles = StyleSheet.create({
   submitBtn: {
     backgroundColor: Colors.deep, borderRadius: 14,
     padding: 16, alignItems: 'center', marginTop: 14,
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
   submitTxt: { color: Colors.white, fontSize: 18, fontWeight: '900' },
 });

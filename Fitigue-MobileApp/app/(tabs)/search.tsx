@@ -1,42 +1,41 @@
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, FlatList, ScrollView, Dimensions,
-  Modal, Animated, Pressable, Platform,
+  Modal, Animated, Pressable, Platform, Image, ActivityIndicator, Alert,
 } from 'react-native';
-import { useState, useMemo, useRef } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useMemo, useRef, useCallback } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { marketplaceAPI } from '../../src/api/apiClient';
 
 const W = Dimensions.get('window').width;
 const CARD = (W - 48) / 2;
 const DRAWER_HEIGHT = 520;
 
-const ALL_ITEMS = [
-  { id: '1',  emoji: '👕', name: 'Maroon Jersey',    price: 500,  size: 'S',  category: 'Shirts',   color: 'Red'   },
-  { id: '2',  emoji: '👖', name: 'Black Trousers',   price: 1200, size: 'M',  category: 'Jeans',    color: 'Black' },
-  { id: '3',  emoji: '🧣', name: 'Plaid Scarf',      price: 800,  size: 'M',  category: 'Scarves',  color: 'Brown' },
-  { id: '4',  emoji: '👞', name: 'Oxford Shoes',     price: 3500, size: 'L',  category: 'Shoes',    color: 'Black' },
-  { id: '5',  emoji: '👗', name: 'Dark Dress',       price: 2500, size: 'S',  category: 'Dresses',  color: 'Black' },
-  { id: '6',  emoji: '👠', name: 'Black Heels',      price: 1800, size: 'S',  category: 'Shoes',    color: 'Black' },
-  { id: '7',  emoji: '🩱', name: 'Velvet Gown',      price: 5000, size: 'M',  category: 'Dresses',  color: 'Red'   },
-  { id: '8',  emoji: '👗', name: 'White Mini Dress', price: 1400, size: 'XS', category: 'Dresses',  color: 'White' },
-  { id: '9',  emoji: '🧥', name: 'Navy Coat',        price: 4500, size: 'L',  category: 'Coats',    color: 'Blue'  },
-  { id: '10', emoji: '👒', name: 'Summer Hat',       price: 600,  size: 'XL', category: 'Hats',     color: 'White' },
-  { id: '11', emoji: '👕', name: 'Blue Shirt',       price: 700,  size: 'L',  category: 'Shirts',   color: 'Blue'  },
-  { id: '12', emoji: '👖', name: 'Grey Jeans',       price: 1500, size: 'XL', category: 'Jeans',    color: 'Black' },
-];
-
-const CATEGORIES  = ['All', 'Shirts', 'Jeans', 'Dresses', 'Shoes', 'Coats', 'Scarves', 'Hats'];
+const CATEGORIES  = ['All', 'Top', 'Bottom', 'Dress', 'Shoes', 'Accessories', 'Outerwear', 'Other'];
 const SIZES       = ['All', 'XS', 'S', 'M', 'L', 'XL'];
 const COLORS      = ['All', 'Black', 'White', 'Red', 'Blue', 'Brown'];
 const SORT_OPTIONS = ['Default', 'Price: Low to High', 'Price: High to Low', 'Name: A-Z'];
+
+interface MarketplaceItem {
+  listing_id?: number;
+  item_id: number;
+  title: string;
+  category: string;
+  size?: string;
+  color?: string;
+  price: number;
+  image_url?: string;
+}
 
 // Which section the drawer opens to
 type DrawerSection = 'all' | 'category' | 'size' | 'color' | 'sort';
 
 export default function SearchScreen() {
   const router = useRouter();
+  const [items, setItems] = useState<MarketplaceItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // ── Filter state
   const [query,    setQuery]    = useState('');
@@ -49,6 +48,34 @@ export default function SearchScreen() {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [drawerSection, setDrawerSection] = useState<DrawerSection>('all');
   const slideAnim = useRef(new Animated.Value(DRAWER_HEIGHT)).current;
+
+  const categoryToEmoji: Record<string, string> = {
+    Top: '👕',
+    Bottom: '👖',
+    Dress: '👗',
+    Shoes: '👠',
+    Accessories: '🧣',
+    Outerwear: '🧥',
+    Other: '👔',
+  };
+
+  const loadMarketplaceListings = async () => {
+    try {
+      setLoading(true);
+      const listings = await marketplaceAPI.getAllListings();
+      setItems(listings || []);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to load marketplace items');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadMarketplaceListings();
+    }, [])
+  );
 
   // ── Open drawer — slide up
   const openDrawer = (section: DrawerSection) => {
@@ -89,19 +116,19 @@ export default function SearchScreen() {
 
   // ── Filtered + sorted results
   const results = useMemo(() => {
-    let items = [...ALL_ITEMS];
+    let filtered = [...items];
     if (query.trim()) {
       const q = query.toLowerCase();
-      items = items.filter(i => i.name.toLowerCase().includes(q));
+      filtered = filtered.filter(i => i.title?.toLowerCase().includes(q));
     }
-    if (category !== 'All') items = items.filter(i => i.category === category);
-    if (size     !== 'All') items = items.filter(i => i.size     === size);
-    if (color    !== 'All') items = items.filter(i => i.color    === color);
-    if (sort === 'Price: Low to High')  items.sort((a, b) => a.price - b.price);
-    if (sort === 'Price: High to Low')  items.sort((a, b) => b.price - a.price);
-    if (sort === 'Name: A-Z')           items.sort((a, b) => a.name.localeCompare(b.name));
-    return items;
-  }, [query, category, size, color, sort]);
+    if (category !== 'All') filtered = filtered.filter(i => i.category === category);
+    if (size     !== 'All') filtered = filtered.filter(i => i.size === size);
+    if (color    !== 'All') filtered = filtered.filter(i => i.color === color);
+    if (sort === 'Price: Low to High') filtered.sort((a, b) => Number(a.price) - Number(b.price));
+    if (sort === 'Price: High to Low') filtered.sort((a, b) => Number(b.price) - Number(a.price));
+    if (sort === 'Name: A-Z') filtered.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    return filtered;
+  }, [items, query, category, size, color, sort]);
 
   // ── Pill label — shows selected value if active
   const pillLabel = (
@@ -332,7 +359,11 @@ export default function SearchScreen() {
       </View>
 
       {/* ── Results grid ── */}
-      {results.length === 0 ? (
+      {loading ? (
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="large" color={Colors.accent} />
+        </View>
+      ) : results.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyEmoji}>🔍</Text>
           <Text style={styles.emptyText}>No items match your filters</Text>
@@ -344,24 +375,28 @@ export default function SearchScreen() {
         <FlatList
           data={results}
           numColumns={2}
-          keyExtractor={item => item.id}
+          keyExtractor={item => String(item.listing_id || item.item_id)}
           contentContainerStyle={styles.grid}
           columnWrapperStyle={styles.row}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.card}
-              onPress={() => router.push(`/item/${item.id}`)}
+              onPress={() => router.push(`/item/${item.listing_id || item.item_id}`)}
               activeOpacity={0.85}
             >
               <View style={styles.imgBox}>
-                <Text style={styles.emoji}>{item.emoji}</Text>
+                {item.image_url ? (
+                  <Image source={{ uri: item.image_url }} style={styles.image} resizeMode="cover" />
+                ) : (
+                  <Text style={styles.emoji}>{categoryToEmoji[item.category] || '👔'}</Text>
+                )}
               </View>
-              <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.itemName} numberOfLines={1}>{item.title}</Text>
               <View style={styles.cardBottom}>
                 <Text style={styles.price}>Rs {item.price}</Text>
                 <View style={styles.sizeBadge}>
-                  <Text style={styles.sizeBadgeTxt}>{item.size}</Text>
+                  <Text style={styles.sizeBadgeTxt}>{item.size || '-'}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -500,7 +535,9 @@ const styles = StyleSheet.create({
     width: '100%', height: CARD - 20,
     backgroundColor: Colors.bg, borderRadius: 14,
     justifyContent: 'center', alignItems: 'center',
+    overflow: 'hidden',
   },
+  image: { width: '100%', height: '100%' },
   emoji: { fontSize: 58 },
   itemName: {
     marginTop: 8, fontSize: 13, fontWeight: '700', color: Colors.deep,
@@ -519,6 +556,9 @@ const styles = StyleSheet.create({
   // Empty state
   emptyState: {
     flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12,
+  },
+  loaderWrap: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
   },
   emptyEmoji: { fontSize: 60 },
   emptyText: {

@@ -7,6 +7,12 @@ exports.register = async (req, res) => {
   try {
     const { username, email, password, gender, age } = req.body;
     const pool = await poolPromise;
+    const normalizedGender =
+      gender === 'Male' || gender === 'M' || gender === 'm'
+        ? 'M'
+        : gender === 'Female' || gender === 'F' || gender === 'f'
+          ? 'F'
+          : null;
 
     // Check if username exists
     const check = await pool.request()
@@ -19,18 +25,26 @@ exports.register = async (req, res) => {
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(password, saltRounds);
 
-    await pool.request()
+    const insertResult = await pool.request()
       .input('username',      sql.VarChar,  username)
       .input('email',         sql.VarChar,  email)
       .input('password_hash', sql.VarChar,  password_hash)
-      .input('gender',        sql.Char(1),  gender || null)
+      .input('gender',        sql.Char(1),  normalizedGender)
       .input('age',           sql.Int,      age || null)
       .query(`
         INSERT INTO Users (username, email, password_hash, gender, age)
+        OUTPUT INSERTED.user_id, INSERTED.username, INSERTED.email, INSERTED.gender, INSERTED.age, INSERTED.created_at
         VALUES (@username, @email, @password_hash, @gender, @age)
       `);
 
-    res.status(201).json({ message: 'User registered successfully' });
+    const userData = insertResult.recordset[0];
+    const token = jwt.sign(
+      { user_id: userData.user_id, username: userData.username },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({ token, user: userData });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

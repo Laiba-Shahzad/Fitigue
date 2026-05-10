@@ -8,25 +8,41 @@ exports.addItem = async (req, res) => {
     const image_url = req.file ? req.file.path : null; // cloudinary URL
     const pool = await poolPromise;
 
-    await pool.request()
-      .input('user_id',     sql.Int,          req.user.user_id)
-      .input('title',       sql.VarChar,       title)
-      .input('description', sql.VarChar,       description)
-      .input('category',    sql.VarChar,       category)
-      .input('size',        sql.VarChar,       size)
-      .input('color',       sql.VarChar,       color)
-      .input('price',       sql.Decimal(10,2), price)
-      .input('allow_sale',  sql.Bit,           allow_sale)
-      .input('allow_swap',  sql.Bit,           allow_swap)
-      .input('image_url',   sql.VarChar,       image_url)
-      .query(`
-        INSERT INTO WardrobeItems 
-          (user_id, title, description, category, size, color, price, allow_sale, allow_swap, image_url)
-        VALUES 
-          (@user_id, @title, @description, @category, @size, @color, @price, @allow_sale, @allow_swap, @image_url)
-      `);
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
 
-    res.status(201).json({ message: 'Item added', image_url });
+    try {
+      const wardrobeInsert = await new sql.Request(transaction)
+        .input('user_id',     sql.Int,          req.user.user_id)
+        .input('title',       sql.VarChar,      title)
+        .input('description', sql.VarChar,      description)
+        .input('category',    sql.VarChar,      category)
+        .input('size',        sql.VarChar,      size)
+        .input('color',       sql.VarChar,      color)
+        .input('price',       sql.Decimal(10,2), price)
+        .input('allow_sale',  sql.Bit,          parseInt(allow_sale) || 0)
+        .input('allow_swap',  sql.Bit,          parseInt(allow_swap) || 0)
+        .input('image_url',   sql.VarChar,      image_url)
+        .query(`
+          INSERT INTO WardrobeItems
+            (user_id, title, description, category, size, color, price, allow_sale, allow_swap, image_url)
+          OUTPUT INSERTED.item_id
+          VALUES
+            (@user_id, @title, @description, @category, @size, @color, @price, @allow_sale, @allow_swap, @image_url)
+        `);
+
+      const item_id = wardrobeInsert.recordset[0].item_id;
+
+      await new sql.Request(transaction)
+        .input('item_id', sql.Int, item_id)
+        .query(`INSERT INTO MarketplaceListings (item_id) VALUES (@item_id)`);
+
+      await transaction.commit();
+      res.status(201).json({ message: 'Item added and posted to marketplace', item_id, image_url });
+    } catch (txErr) {
+      await transaction.rollback();
+      throw txErr;
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -94,9 +110,9 @@ exports.getMyWardrobe = async (req, res) => {
       .input('user_id', sql.Int, req.user.user_id)
       .query(`
         SELECT item_id, title, category, size, color, price,
-               allow_sale, allow_swap, status, created_at
+               allow_sale, allow_swap, status, image_url, created_at
         FROM WardrobeItems
-        WHERE user_id = @user_id
+        WHERE user_id = @user_id AND status = 'available'
         ORDER BY created_at DESC
       `);
 
@@ -142,8 +158,8 @@ exports.editItem = async (req, res) => {
       .input('description', sql.VarChar,       description)
       .input('price',       sql.Decimal(10,2), price)
       .input('color',       sql.VarChar,       color)
-      .input('allow_swap',  sql.Bit,           allow_swap)
-      .input('allow_sale',  sql.Bit,           allow_sale)
+      .input('allow_swap',  sql.Bit,           parseInt(allow_swap) || 0)
+      .input('allow_sale',  sql.Bit,           parseInt(allow_sale) || 0)
       .input('item_id',     sql.Int,           req.params.id)
       .input('user_id',     sql.Int,           req.user.user_id)
       .query(`

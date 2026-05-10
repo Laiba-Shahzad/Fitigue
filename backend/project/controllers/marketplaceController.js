@@ -1,5 +1,15 @@
 const { sql, poolPromise } = require('../config/db');
 
+const ensureMarketplaceCoverage = async (pool) => {
+  await pool.request().query(`
+    INSERT INTO MarketplaceListings (item_id)
+    SELECT wi.item_id
+    FROM WardrobeItems wi
+    LEFT JOIN MarketplaceListings ml ON ml.item_id = wi.item_id
+    WHERE ml.item_id IS NULL
+  `);
+};
+
 // ─── 1. POST ITEM TO MARKETPLACE ───────────────────────────────
 exports.postListing = async (req, res) => {
   try {
@@ -20,11 +30,12 @@ exports.postListing = async (req, res) => {
 exports.getAllListings = async (req, res) => {
   try {
     const pool = await poolPromise;
+    await ensureMarketplaceCoverage(pool);
 
     const result = await pool.request().query(`
       SELECT ml.listing_id, wi.item_id, wi.title, wi.description,
              wi.category, wi.size, wi.color, wi.price,
-             wi.allow_sale, wi.allow_swap,
+             wi.allow_sale, wi.allow_swap, wi.image_url,
              u.username,
              (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1)))
               FROM Ratings r
@@ -47,6 +58,7 @@ exports.getAllListings = async (req, res) => {
 exports.getUserListings = async (req, res) => {
   try {
     const pool = await poolPromise;
+    await ensureMarketplaceCoverage(pool);
 
     const result = await pool.request()
       .input('user_id', sql.Int, req.params.userId)
@@ -95,10 +107,11 @@ exports.getListingDetail = async (req, res) => {
     const pool = await poolPromise;
 
     const result = await pool.request()
-      .input('listing_id', sql.Int, req.params.id)
+      .input('id', sql.Int, req.params.id)
       .query(`
-        SELECT wi.item_id, wi.title, wi.description, wi.category,
+        SELECT TOP 1 ml.listing_id, wi.item_id, wi.title, wi.description, wi.category,
                wi.size, wi.color, wi.price, wi.allow_sale, wi.allow_swap,
+               wi.image_url, wi.status,
                u.user_id, u.username,
                (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1)))
                 FROM Ratings r
@@ -111,7 +124,8 @@ exports.getListingDetail = async (req, res) => {
         FROM MarketplaceListings ml
         JOIN WardrobeItems wi ON ml.item_id = wi.item_id
         JOIN Users u ON wi.user_id = u.user_id
-        WHERE ml.listing_id = @listing_id
+        WHERE ml.listing_id = @id OR wi.item_id = @id
+        ORDER BY ml.posted_at DESC
       `);
 
     if (!result.recordset[0]) return res.status(404).json({ message: 'Listing not found' });
@@ -126,11 +140,12 @@ exports.filterListings = async (req, res) => {
   try {
     const { category, size, color, min_price, max_price, allow_swap, allow_sale } = req.query;
     const pool = await poolPromise;
+    await ensureMarketplaceCoverage(pool);
 
     const request = pool.request();
     let query = `
       SELECT ml.listing_id, wi.item_id, wi.title, wi.category,
-             wi.size, wi.color, wi.price, wi.allow_sale, wi.allow_swap,
+             wi.size, wi.color, wi.price, wi.allow_sale, wi.allow_swap, wi.image_url,
              u.username,
              (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1)))
               FROM Ratings r

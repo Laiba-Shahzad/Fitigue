@@ -43,7 +43,7 @@ export default function TabLayout() {
         name="add"
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name={'add-circle' as IoniconsName} size={size + 12} color={Colors.deep} />
+            <Ionicons name={'add-circle' as IoniconsName} size={size + 5} color={color} />
           ),
         }}
       />

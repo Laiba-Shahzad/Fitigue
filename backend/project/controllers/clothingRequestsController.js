@@ -25,6 +25,7 @@ exports.getAllClothingRequests = async (req, res) => {
 
     const result = await pool.request().query(`
       SELECT cr.request_id,
+             u.user_id,
              u.username,
              (SELECT AVG(CAST(r.rating_value AS DECIMAL(3,1))) 
               FROM Ratings r 

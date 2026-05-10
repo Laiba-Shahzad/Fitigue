@@ -1,6 +1,6 @@
 const { sql, poolPromise } = require('../config/db');
 
-// ─── 1. BUY ITEM ────────────────────────────────────────────────
+// ─── 1. BUY ITEM (REQUEST -> SELLER APPROVAL) ───────────────────
 exports.buyItem = async (req, res) => {
   try {
     const { item_id } = req.body;
@@ -23,36 +23,41 @@ exports.buyItem = async (req, res) => {
 
     const seller_id = item.user_id;
 
-    // Insert trade record (seller_id is not stored)
+    // Avoid duplicate pending buy requests from same buyer for same item
+    const existingPending = await pool.request()
+      .input('buyer_id', sql.Int, buyer_id)
+      .input('item_id', sql.Int, item_id)
+      .query(`
+        SELECT TOP 1 trade_id
+        FROM Trades
+        WHERE buyer_id = @buyer_id AND item_id = @item_id AND trade_type = 'buy' AND status = 'pending'
+      `);
+    if (existingPending.recordset[0]) {
+      return res.status(409).json({ message: 'Buy request already pending for this item' });
+    }
+
+    // Insert pending trade request
     const tradeResult = await pool.request()
       .input('buyer_id', sql.Int, buyer_id)
       .input('item_id',  sql.Int, item_id)
       .query(`
         INSERT INTO Trades (buyer_id, item_id, trade_type, status)
         OUTPUT INSERTED.trade_id
-        VALUES (@buyer_id, @item_id, 'buy', 'completed')
+        VALUES (@buyer_id, @item_id, 'buy', 'pending')
       `);
 
     const trade_id = tradeResult.recordset[0].trade_id;
 
-    // Mark item as sold
-    await pool.request()
-      .input('item_id', sql.Int, item_id)
-      .query(`UPDATE WardrobeItems SET status = 'sold' WHERE item_id = @item_id`);
-
-    // Notify seller and buyer
+    // Notify seller with actionable notification
     await pool.request()
       .input('seller_id', sql.Int, seller_id)
-      .input('buyer_id',  sql.Int, buyer_id)
       .input('trade_id',  sql.Int, trade_id)
       .query(`
         INSERT INTO Notifications (user_id, type, reference_id)
-        VALUES (@seller_id, 'item_sold', @trade_id);
-        INSERT INTO Notifications (user_id, type, reference_id)
-        VALUES (@buyer_id, 'purchase_confirmed', @trade_id);
+        VALUES (@seller_id, 'buy_request', @trade_id);
       `);
 
-    res.status(201).json({ message: 'Purchase successful', trade_id });
+    res.status(201).json({ message: 'Buy request sent to seller', trade_id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
